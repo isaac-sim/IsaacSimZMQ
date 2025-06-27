@@ -4,6 +4,7 @@
 import asyncio
 import time
 
+
 import carb
 import numpy as np
 import omni.usd
@@ -15,6 +16,7 @@ from isaacsim.robot.manipulators.examples.franka import Franka
 from isaacsim.robot.manipulators.examples.franka.controllers.rmpflow_controller import (
     RMPFlowController,
 )
+import isaacsim.core.utils.stage as stage_utils
 from isaacsim.sensors.camera import Camera
 from isaacsim.storage.native import get_assets_root_path
 from isaacsim.util.debug_draw import _debug_draw
@@ -86,7 +88,7 @@ class FrankaVisionMission(Mission):
         self.franka_socket = self.zmq_client.get_pull_socket(self.ports["franka"])
 
         # Set up camera for streaming
-        self._camera_path = "/World/base_link/y_link/Camera"
+        self._camera_path = "/World/camera/y_link/Camera"
         stage = omni.usd.get_context().get_stage()
         self._camera_prim = stage.GetPrimAtPath(self._camera_path)
 
@@ -129,28 +131,31 @@ class FrankaVisionMission(Mission):
             self.franka_sub_loop
         )
 
-    def stop_mission(self) -> None:
+    async def stop_mission_async(self) -> None:
         """Stop the mission and clean up resources.
 
         This method stops the simulation, disconnects ZMQ sockets, and destroys annotators.
         """
+        if not hasattr(self, "world"):
+            carb.log_warn(f"[{EXT_NAME}] world was not initialized.")
+            return
 
-        async def _stop() -> None:
-            await self.world.stop_async()
-            self.receive_commands = False
-            self.zmq_client.remove_physx_callbacks()
-            # must wait for all callbacks to finish before disconnecting from the server
-            await asyncio.sleep(0.5)
-            await self.zmq_client.disconnect_all()
-            # must wait for all client to disconnect before destroying the annotators
-            await asyncio.sleep(0.5)
-            if self.world.is_stopped():
-                for annotator in self.camera_annotators:
-                    annotator.destroy()
-            else:
-                carb.log_warn(f"[{EXT_NAME}] Cant destory annotators while simulation is running!")
+        await self.world.stop_async()
+        self.receive_commands = False
+        self.zmq_client.remove_physx_callbacks()
+        # must wait for all callbacks to finish before disconnecting from the server
+        await asyncio.sleep(0.5)
+        await self.zmq_client.disconnect_all()
+        # must wait for all client to disconnect before destroying the annotators
+        await asyncio.sleep(0.5)
+        if self.world.is_stopped():
+            for annotator in self.camera_annotators:
+                annotator.destroy()
+        else:
+            carb.log_warn(f"[{EXT_NAME}] Cant destory annotators while simulation is running!")
 
-        asyncio.ensure_future(_stop())
+    def stop_mission(self) -> None:
+        asyncio.ensure_future(self.stop_mission_async())
 
     def camera_control_sub_loop(self, proto_msg: server_control_message_pb2.ServerControlMessage) -> None:
         """Handle camera control commands received.
@@ -186,6 +191,8 @@ class FrankaVisionMission(Mission):
                     )
                 )
             except:
+                print(traceback.format_exc())
+                print(new_velocities)
                 carb.log_warn(f"[{EXT_NAME}] unable to apply action to camera")
 
     def settings_sub_loop(self, proto_msg: server_control_message_pb2.ServerControlMessage) -> None:
@@ -216,9 +223,13 @@ class FrankaVisionMission(Mission):
 
         if self.world.is_playing():
             try:
+                # Move end effector to target position:
+                # Position is computed from the server
+                # Orientation is computed from ground truth
+                rot_gt = self.target.get_world_poses()[1][0]
                 actions = self.rmpf_controller.forward(
                     target_end_effector_position=np.array(new_effector_pos),
-                    target_end_effector_orientation=np.array([0, 1, 0, 0]),
+                    target_end_effector_orientation=rot_gt,
                 )
                 self.franka_articulation_controller.apply_action(actions)
                 if proto_msg.franka_command.show_marker:
@@ -242,6 +253,8 @@ class FrankaVisionMission(Mission):
         self.rmpf_controller = RMPFlowController(name="target_follower_controller", robot_articulation=self.franka)
         self.franka_articulation_controller = self.franka.get_articulation_controller()
         self.target = XFormPrim(prim_paths_expr="/World/Target")
+        rot = euler_angles_to_quat((-180, 0, -180), degrees=True)
+        self.target.set_world_poses(orientations=np.array([rot]))
 
     def before_reset_world(self) -> None:
         """Prepare the world for reset.
@@ -249,7 +262,7 @@ class FrankaVisionMission(Mission):
         This method is called before resetting the world to set up the camera robot.
         """
         self.draw.clear_points()
-        self.camera_robot = Robot(prim_path=f"/World/base_link", name="robot")
+        self.camera_robot = Robot(prim_path=f"/World/camera", name="robot")
         self.world.scene.add(self.camera_robot)
 
     def after_reset_world(self) -> None:
@@ -264,18 +277,24 @@ class FrankaVisionMission(Mission):
 
     @classmethod
     def add_franka(cls) -> None:
-        """Add a Franka robot to the scene."""
+        """Add a Franka robot to the scene as reference"""
         root = get_assets_root_path()
-        franka_usd = root + "/Isaac/Robots/Franka/franka.usd"
-
-        omni.kit.commands.execute(
-            "CreateReferenceCommand",
-            usd_context=omni.usd.get_context(),
-            path_to="/World/Franka",
-            asset_path=franka_usd,
-            instanceable=False,
+        franka_usd = root + "/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd"
+        stage_utils.add_reference_to_stage(
+            usd_path=franka_usd,
+            prim_path="/World/Franka"
         )
-        omni.kit.selection.SelectNoneCommand().do()
+
+        #########################################################
+        # Temporary fix to disable instanceable geometries on Franka asset.
+        # This is related to an open bug with OV Fabric Scene Delegate and SceneGraphInstances.
+        stage = omni.usd.get_context().get_stage()
+        for prim in stage.Traverse():
+            p = str(prim.GetPath())
+            if p.startswith("/World/Franka/") and p.endswith("geometry"):
+                prim.SetInstanceable(False)
+        #########################################################
+
 
     @classmethod
     async def _async_load(cls) -> None:
@@ -307,16 +326,19 @@ class FrankaMultiVisionMission(FrankaVisionMission):
     def add_franka(cls) -> None:
         """Add a Franka robot with an additional gripper camera to the scene."""
         super().add_franka()
-        cls.gripper_camera_prim_path = "/World/Franka/panda_link7/gripper_camera"
+        cls.gripper_camera_prim_path = "/World/Franka/panda_hand/gripper_camera"
         gripper_camera = Camera(prim_path=cls.gripper_camera_prim_path)
         gripper_camera.set_clipping_range(0.01, 10000)
         gripper_camera.set_visibility(False)
 
-        gripper_camera.set_projection_type("fisheyePolynomial")
-        pos = (0, 0.1, 0)
+        gripper_camera.set_lens_distortion_model("OmniLensDistortionFthetaAPI")
+
+        pos = (0.1, 0.0, 0)
         rot = euler_angles_to_quat((190, 0, 0), degrees=True)
-        gripper_camera_xform = XFormPrim(prim_paths_expr="/World/Franka/panda_link7/gripper_camera")
+        gripper_camera_xform = XFormPrim(prim_paths_expr="/World/Franka/panda_hand/gripper_camera")
         gripper_camera_xform.set_local_poses(translations=np.array([pos]), orientations=np.array([rot]))
+
+
 
     def start_mission(self) -> None:
         """Start the mission with multiple cameras.

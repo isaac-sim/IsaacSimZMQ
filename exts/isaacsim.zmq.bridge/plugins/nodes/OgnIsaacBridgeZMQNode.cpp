@@ -57,6 +57,7 @@ class OgnIsaacBridgeZMQNode {
     std::mutex m_mutex;
     cudaStream_t m_cudaStream;
     bool m_cudaStreamNotCreated{ true };
+    uint32_t m_zmqFailCount{ 0 };
 
 public:
     OgnIsaacBridgeZMQNode()
@@ -89,6 +90,7 @@ public:
 
         m_port = port;
         m_ip = ip;
+        m_zmqFailCount = 0;
 
         try {
             m_zmqSocket = std::make_unique<zmq_lib::socket_t>(*m_zmqContext, zmq_lib::socket_type::push);
@@ -245,15 +247,18 @@ bool OgnIsaacBridgeZMQNode::compute(OgnIsaacBridgeZMQNodeDatabase& db) {
     zmq_lib::message_t zmq_message(serialized_message.size());
     memcpy(zmq_message.data(), serialized_message.data(), serialized_message.size());
     auto message_sent = state.m_zmqSocket->send(zmq_message, zmq_lib::send_flags::dontwait);
-    if (!message_sent.has_value()) {
-        // Get current system time for throttling error messages
-        double currentTime = db.inputs.systemTime();
 
-        // Only log errors once every 5 seconds to avoid console flooding
-        if (currentTime - lastErrorLogTime >= 5.0) {
+    if (!message_sent.has_value()) {
+        state.m_zmqFailCount++;
+        double currentTime = db.inputs.systemTime();
+        // Log the error state every 5 seconds,
+        // and only if errors are accumulating.
+        if (state.m_zmqFailCount > 20 && currentTime - lastErrorLogTime >= 5.0) {
             CARB_LOG_ERROR("Failed to send message (no server available)");
             lastErrorLogTime = currentTime;
         }
+    } else {
+        state.m_zmqFailCount = 0;
     }
 
     return true;

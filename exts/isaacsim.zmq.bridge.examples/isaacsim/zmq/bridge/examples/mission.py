@@ -120,10 +120,17 @@ class Mission:
         print(f"[{EXT_NAME}] loading mission")
         asyncio.ensure_future(cls._async_load())
 
+    async def stop_mission_async(self) -> None:
+        """
+        Stop the mission and clean up resources.
+        """
+        carb.log_warn(f"[{EXT_NAME}] stop mission: NOT IMPLEMENTED")
+
     async def _reset(self) -> None:
         """
         similar to reset_world() but async
         """
+        await self.stop_mission_async()
         self.world = World(physics_dt=1.0 / self.physics_dt)
         # Clear only the registry to maintain stage structure
         self.world.scene.clear(registry_only=True)
@@ -132,6 +139,7 @@ class Mission:
         self.before_reset_world()
         await self.world.reset_async()
         self.after_reset_world()
+        self.start_mission()
 
     def reset_world_async(self) -> None:
         asyncio.ensure_future(self._reset())

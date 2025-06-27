@@ -14,13 +14,16 @@ name = "IsaacSimZMQ"
 msbuild.vs_version = "vs2019"
 post_build.commands = []
 
+[repo_build.premake]
+linux_x86_64_cxx_abi=true
+
 [repo_build.docker]
 enabled = false
 
 [repo_precache_exts]
 registries = [
-    { name = "kit/default", url = "https://ovextensionsprod.blob.core.windows.net/exts/kit/prod/106/shared" },
-    { name = "kit/sdk", url = "https://ovextensionsprod.blob.core.windows.net/exts/kit/prod/sdk/${kit_version_short}/${kit_git_hash}" },
+  {name = "kit/default", url = "omniverse://kit-extensions.ov.nvidia.com/exts/kit/default"},
+  {name = "kit/sdk", url = "omniverse://kit-extensions.ov.nvidia.com/exts/kit/sdk/${kit_version_short}/${kit_git_hash}"},
 ]
 
 ext_folders = [

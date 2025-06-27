@@ -7,8 +7,8 @@
                 double radius = 5
             }
             dictionary Perspective = {
-                double3 position = (0.09318430737631024, 2.2090252661095953, 0.7481878685031184)
-                double3 target = (0.48120577227025524, 0.8118996290014056, 0.5260294214402051)
+                double3 position = (0.40973424888394017, 1.937909539741277, 0.7595238826797109)
+                double3 target = (0.5786803092460564, 1.2909837464738065, 0.6568495708366566)
             }
             dictionary Right = {
                 double3 position = (0, -5, 0)
@@ -21,14 +21,14 @@
             string boundCamera = "/OmniverseKit_Persp"
         }
         dictionary omni_layer = {
-            string authoring_layer = "./franka_multi_cam_world.usda"
+            string authoring_layer = "./franka_world.usda"
             dictionary locked = {
                 bool "./props/camera.usda" = 1
-                bool "./props/looks.usd" = 1
-                bool "./props/model.usd" = 1
-                bool "./props/physics.usd" = 1
-                bool "./props/scale.usd" = 1
-                bool "./props/sensor.usd" = 1
+                bool "./props/looks.usd" = 0
+                bool "./props/model.usd" = 0
+                bool "./props/physics.usd" = 0
+                bool "./props/scale.usd" = 0
+                bool "./props/sensor.usd" = 0
             }
         }
         dictionary physicsSettings = {
@@ -41,9 +41,6 @@
     endTimeCode = 1000000
     metersPerUnit = 1
     startTimeCode = 0
-    subLayers = [
-        @./props/camera.usda@
-    ]
     timeCodesPerSecond = 60
     upAxis = "Z"
 )
@@ -80,114 +77,6 @@ def Xform "World"
             uniform token axis = "Z"
             bool primvars:isMatteObject = 1
             uniform token purpose = "guide"
-        }
-    }
-
-    over "base_link"
-    {
-        quatd xformOp:orient = (0.25881904510252074, 0, 0, 0.9659258262890683)
-        float3 xformOp:scale = (0.01, 0.01, 0.01)
-        double3 xformOp:translate = (0.8, 1.3, 0.7)
-        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-
-        over "base_link_grp"
-        {
-        }
-
-        over "z_link"
-        {
-        }
-
-        over "y_link"
-        {
-            float3 xformOp:rotateXYZ = (80, 0, 0)
-            float3 xformOp:scale = (1, 1, 1)
-            double3 xformOp:translate = (0, 5.099616262901772, 0)
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
-
-            over "Camera"
-            {
-                custom token cameraProjectionType (
-                    allowedTokens = ["pinhole", "fisheyeOrthographic", "fisheyeEquidistant", "fisheyeEquisolid", "fisheyePolynomial", "fisheyeSpherical", "fisheyeKannalaBrandtK3", "fisheyeRadTanThinPrism", "omniDirectionalStereo"]
-                )
-                float focalLength = 20
-                custom float fthetaCx
-                custom float fthetaCy
-                custom float fthetaHeight
-                custom float fthetaMaxFov
-                custom float fthetaPolyA
-                custom float fthetaPolyB
-                custom float fthetaPolyC
-                custom float fthetaPolyD
-                custom float fthetaPolyE
-                custom float fthetaWidth
-                quatd xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (-0.0000010778094292618334, 0, -4.5)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-        }
-
-        over "joints"
-        {
-            over "j3_Y_RevoluteJoint"
-            {
-                point3f physics:localPos0 = (-1.1809998e-14, 7.922471e-7, 0)
-                point3f physics:localPos1 = (6.0810575e-15, 3.9612354e-7, -6.861061e-7)
-                quatf physics:localRot0 = (0.76604444, 0.64278764, 0, 0)
-                quatf physics:localRot1 = (1, 0, 0, 0)
-            }
-        }
-
-        over "x_link"
-        {
-        }
-    }
-
-    over "nova_carter"
-    {
-        quatd xformOp:orient = (0.7071067811865476, 0, 0, 0.7071067811865475)
-        double3 xformOp:scale = (2, 2, 2)
-        double3 xformOp:translate = (-9.5, -0.25, 0)
-        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-
-        over "chassis_link"
-        {
-        }
-
-        over "caster_frame_base"
-        {
-        }
-
-        over "caster_swivel_left"
-        {
-        }
-
-        over "caster_wheel_left"
-        {
-        }
-
-        over "caster_swivel_right"
-        {
-        }
-
-        over "caster_wheel_right"
-        {
-        }
-
-        over "wheel_left"
-        {
-        }
-
-        over "wheel_right"
-        {
-        }
-
-        over "dummy_link"
-        {
-        }
-
-        over "dummy_link_2"
-        {
         }
     }
 
@@ -239,25 +128,16 @@ def Xform "World"
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
     }
 
-    over "Looks"
+    def Xform "camera" (
+        displayName = "camera"
+        references = @./props/interface_camera.usd@
+    )
     {
-        def Material "OmniPBR"
-        {
-            token outputs:mdl:displacement.connect = </World/Looks/OmniPBR/Shader.outputs:out>
-            token outputs:mdl:surface.connect = </World/Looks/OmniPBR/Shader.outputs:out>
-            token outputs:mdl:volume.connect = </World/Looks/OmniPBR/Shader.outputs:out>
-
-            def Shader "Shader"
-            {
-                uniform token info:implementationSource = "sourceAsset"
-                uniform asset info:mdl:sourceAsset = @OmniPBR.mdl@
-                uniform token info:mdl:sourceAsset:subIdentifier = "OmniPBR"
-                color3f inputs:diffuse_color_constant = (0.4627451, 0.7254902, 0)
-                token outputs:out (
-                    renderType = "material"
-                )
-            }
-        }
+        quatd xformOp:orient = (0.18301270189221946, -0.18301270189221924, -0.6830127018922193, 0.6830127018922194)
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        double3 xformOp:scale = (0.1, 0.1, 0.1)
+        double3 xformOp:translate = (0.8, 1.3, 0.7)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
     }
 }
 
@@ -303,5 +183,67 @@ def PhysicsScene "physicsScene" (
     bool physxScene:enableStabilization = 1
     uniform token physxScene:solverType = "TGS"
     uint physxScene:timeStepsPerSecond = 60
+}
+
+def "Render" (
+    hide_in_stage_window = true
+    no_delete = true
+)
+{
+    def "OmniverseKit"
+    {
+        def "HydraTextures" (
+            hide_in_stage_window = true
+            no_delete = true
+        )
+        {
+            def RenderProduct "omni_kit_widget_viewport_ViewportTexture_0" (
+                prepend apiSchemas = ["OmniRtxSettingsCommonAdvancedAPI_1", "OmniRtxSettingsRtAdvancedAPI_1", "OmniRtxSettingsPtAdvancedAPI_1", "OmniRtxPostColorGradingAPI_1", "OmniRtxPostChromaticAberrationAPI_1", "OmniRtxPostBloomPhysicalAPI_1", "OmniRtxPostMatteObjectAPI_1", "OmniRtxPostCompositingAPI_1", "OmniRtxPostDofAPI_1", "OmniRtxPostMotionBlurAPI_1", "OmniRtxPostTvNoiseAPI_1", "OmniRtxPostTonemapIrayReinhardAPI_1", "OmniRtxPostDebugSettingsAPI_1", "OmniRtxDebugSettingsAPI_1"]
+                hide_in_stage_window = true
+                no_delete = true
+            )
+            {
+                rel camera = </OmniverseKit_Persp>
+                token omni:rtx:background:source:texture:textureMode = "repeatMirrored"
+                token omni:rtx:background:source:type = "domeLight"
+                bool omni:rtx:dlss:frameGeneration = 0
+                string omni:rtx:material:db:rtSensorNameToIdMap = "DefaultMaterial:0;AsphaltStandardMaterial:1;AsphaltWeatheredMaterial:2;VegetationGrassMaterial:3;WaterStandardMaterial:4;GlassStandardMaterial:5;FiberGlassMaterial:6;MetalAlloyMaterial:7;MetalAluminumMaterial:8;MetalAluminumOxidizedMaterial:9;PlasticStandardMaterial:10;RetroMarkingsMaterial:11;RetroSignMaterial:12;RubberStandardMaterial:13;SoilClayMaterial:14;ConcreteRoughMaterial:15;ConcreteSmoothMaterial:16;OakTreeBarkMaterial:17;FabricStandardMaterial:18;PlexiGlassStandardMaterial:19;MetalSilverMaterial:20"
+                bool omni:rtx:material:db:syncLoads = 1
+                bool omni:rtx:post:registeredCompositing:invertColorCorrection = 1
+                bool omni:rtx:post:registeredCompositing:invertToneMap = 1
+                bool omni:rtx:pt:lightcache:cached:dontResolveConflicts = 1
+                int omni:rtx:pt:maxSamplesPerLaunch = 2073600
+                int omni:rtx:pt:mgpu:maxPixelsPerRegionExponent = 12
+                color3f omni:rtx:rt:ambientLight:color = (0.1, 0.1, 0.1)
+                bool omni:rtx:rt:demoire = 0
+                bool omni:rtx:rt:lightcache:spatialCache:dontResolveConflicts = 1
+                bool omni:rtx:scene:hydra:materialSyncLoads = 1
+                bool omni:rtx:scene:hydra:mdlMaterialWarmup = 1
+                uint omni:rtx:viewTile:limit = 4294967295
+                rel orderedVars = </Render/Vars/LdrColor>
+                custom bool overrideClipRange = 0
+                uniform int2 resolution = (1280, 720)
+            }
+        }
+    }
+
+    def RenderSettings "OmniverseGlobalRenderSettings" (
+        prepend apiSchemas = ["OmniRtxSettingsGlobalRtAdvancedAPI_1", "OmniRtxSettingsGlobalPtAdvancedAPI_1"]
+        no_delete = true
+    )
+    {
+        rel products = </Render/OmniverseKit/HydraTextures/omni_kit_widget_viewport_ViewportTexture_0>
+    }
+
+    def "Vars"
+    {
+        def RenderVar "LdrColor" (
+            hide_in_stage_window = true
+            no_delete = true
+        )
+        {
+            uniform string sourceName = "LdrColor"
+        }
+    }
 }
 

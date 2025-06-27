@@ -1,6 +1,10 @@
-<project toolsVersion="5.0">
-  <!-- Import dependencies from kit-kernel to ensure we're using the same versions. -->
-  <import path="../_build/${platform}/${config}/kit/dev/all-deps.packman.xml">
+<project toolsVersion="5.6">
+  <!-- Only edit this file to pull kit depedencies. -->
+  <!-- Put all extension-specific dependencies in `ext-deps.packman.xml`. -->
+  <!-- This file contains shared Kit SDK dependencies used by most kit extensions. -->
+
+  <!-- Import Kit SDk target-deps xml file to steal some deps from it: -->
+  <import path="../_build/${platform_target}/${config}/kit/dev/all-deps.packman.xml">
     <filter include="boost_preprocessor"/>
     <filter include="carb_sdk_plugins"/>
     <filter include="cuda"/>

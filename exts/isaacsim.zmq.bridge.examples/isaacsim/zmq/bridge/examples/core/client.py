@@ -12,7 +12,7 @@ import omni
 from isaacsim.core.api.world import World
 
 from .rate_limiter import RateLimitedCallback
-
+from .. import EXT_NAME
 
 class ZMQClient:
     """
@@ -109,6 +109,8 @@ class ZMQClient:
                 sock.disconnect(addr)
             except asyncio.CancelledError:
                 pass
+            except zmq.error.ZMQError:
+                carb.log_warn(f"[{EXT_NAME}] zmq error - non critical\n {traceback.format_exc()}")
             except Exception:
                 carb.log_error(traceback.format_exc())
 
@@ -121,6 +123,8 @@ class ZMQClient:
                 sock.disconnect(addr)
             except asyncio.CancelledError:
                 pass
+            except zmq.error.ZMQError:
+                carb.log_warn(f"[{EXT_NAME}] zmq error - non critical\n {traceback.format_exc()}")
             except Exception:
                 carb.log_error(traceback.format_exc())
 

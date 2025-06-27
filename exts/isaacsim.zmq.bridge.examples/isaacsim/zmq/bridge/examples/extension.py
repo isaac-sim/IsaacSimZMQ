@@ -11,6 +11,7 @@ import omni.usd
 from omni.kit.menu.utils import MenuItemDescription, add_menu_items, remove_menu_items
 from omni.kit.notification_manager import post_notification
 from omni.kit.widget.toolbar import get_instance
+import omni.timeline
 
 from . import EXT_NAME
 from .example_missions import FrankaMultiVisionMission, FrankaVisionMission
@@ -27,6 +28,8 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
     server_ip = "localhost"
 
     def on_startup(self, ext_id) -> None:
+        self.mission = None
+
         # Append example buttons to the main isaac sim toolbar
         self.toolbar = get_instance()
         self.button_group = ZMQClientButtonGroup()
@@ -60,6 +63,20 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
             .create_subscription_to_pop(self.stage_event, name="event_stage_loaded")
         )
         self.check_stage()
+
+        # Subscribe to timeline events to detect when the timeline is stopped
+        self.timeline = omni.timeline.get_timeline_interface()
+        self.timeline_sub = (
+            self.timeline
+            .get_timeline_event_stream()
+            .create_subscription_to_pop(self.timeline_event,
+                                        name="timeline_event")
+        )
+
+    def timeline_event(self, event) -> None:
+        if event.type == int(omni.timeline.TimelineEventType.STOP):
+            if self.mission:
+                self.mission.stop_mission()
 
     def stage_event(self, event) -> None:
         """Handle stage events.
@@ -99,7 +116,8 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
         """
         print(f"[{EXT_NAME}] Setting {mission_name}.")
         post_notification(f"[{EXT_NAME}] Setting {mission_name}.", duration=2)
-        self.button_group.set_mission(mission_class(server_ip=self.server_ip))
+        self.mission = mission_class(server_ip=self.server_ip)
+        self.button_group.set_mission(self.mission)
         self.button_group.set_visiblity(True)
 
     def _clear_mission(self) -> None:
@@ -109,6 +127,7 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
         """
         carb.log_warn(f"[{EXT_NAME}] Stage is empty - Setting mission to None")
         post_notification(f"[{EXT_NAME}] Setting mission to None", duration=2)
+        self.mission = None
         self.button_group.set_mission(None)
         self.button_group.set_visiblity(False)
 
@@ -117,8 +136,8 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
 
         Stops any active mission and removes UI elements.
         """
-        if self.button_group.mission:
-            self.button_group.mission.stop_mission()
+        if self.mission:
+            self.mission.stop_mission()
 
         self.toolbar.remove_widget(self.button_group)
         self.button_group = None
@@ -126,3 +145,4 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
         remove_menu_items(self._menu_items, "Create")
 
         self.stage_load_sub = None
+        self.timeline_sub = None

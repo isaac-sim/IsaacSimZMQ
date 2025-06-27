@@ -1,11 +1,16 @@
-<project toolsVersion="5.0">
+<project toolsVersion="5.6">
 
   <dependency name="zmq" linkPath="../_build/target-deps/zmq">
-    <package name="zmq" version="4.3.2-linux-x86_64-c2496b33" platforms="linux-x86_64" />
+    <package name="zmq" version="4.3.2-linux-x86_64-c2496b33" platforms="${platform_target_abi}" />
   </dependency>
 
+
   <dependency name="protobuf" linkPath="../_build/target-deps/protobuf">
-    <package name="protobuf" version="3.19.4+nv13-linux-x86_64-debug" platforms="linux-x86_64" />
+    <package name="protobuf" version="5.26.0-2-manylinux_2_35_x86_64-static-release" platforms="${platform_target_abi}" />
+  </dependency>
+
+  <dependency name="abseil" linkPath="../_build/target-deps/abseil">
+    <package name="abseil" version="20240116.1-1-manylinux_2_35_x86_64-static-release" platforms="${platform_target_abi}" />
   </dependency>
 
 </project>

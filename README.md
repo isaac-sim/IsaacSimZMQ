@@ -1,6 +1,6 @@
 # Isaac Sim ZMQ Bridge
 
-[![IsaacSim](https://img.shields.io/badge/IsaacSim-4.5.0-silver.svg)](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html)
+[![IsaacSim](https://img.shields.io/badge/IsaacSim-5.0.0-silver.svg)](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html)
 [![Linux platform](https://img.shields.io/badge/platform-linux--64-orange.svg)](https://releases.ubuntu.com/20.04/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -52,9 +52,15 @@ The provided examples demonstrate:
 
 - Linux Ubuntu 22.04
 - [NVIDIA Isaac SIM Requirements](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/requirements.html)
-- [Isaac SIM >4.5.0 (Workstation or Container)](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_workstation.html)
+- [Isaac SIM 5.0.0 (Workstation or Container)](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_workstation.html)
 - Docker
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html)
+
+> **⚠️ PRE-RELEASE SOFTWARE NOTICE**
+> Isaac Sim 5.0 is a pre-release, currently in development.
+> The Isaac Sim 4.5 version of this extension is avilable [here](https://github.com/isaac-sim/IsaacSimZMQ/tree/isaac-sim-4.5.0).
+
+
 
 ## Installation
 
@@ -75,7 +81,7 @@ To use the extension in an Isaac Sim container, follow these steps:
 
 1. Pull the [Isaac Sim container](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_container.html#):
 ```bash
-docker pull nvcr.io/nvidia/isaac-sim:4.5.0
+docker pull nvcr.io/nvidia/isaac-sim:5.0.0
 ```
 
 2. From this repo root, run the container + mount the extension and assets:
@@ -92,7 +98,7 @@ docker run --name isaac-sim --entrypoint bash -it --runtime=nvidia --gpus all -e
     -v ~/docker/isaac-sim/documents:/root/Documents:rw \
     -v $(pwd)/exts:/root/Documents/exts:rw \
     -v $(pwd)/assets:/root/Documents/assets:rw \
-    nvcr.io/nvidia/isaac-sim:4.5.0
+    nvcr.io/nvidia/isaac-sim:5.0.0
 ```
 3. __Inisde the container__, install the dependencies:
 ```bash
@@ -162,7 +168,6 @@ The repository includes the following example missions:
 
 To start communication:
 1. In Isaac Sim, click the `Reset World` button on the toolbar
-2. Click the `Start Streaming` button
 
 <img src="exts/isaacsim.zmq.bridge.examples/data/buttons.png" width="500">
 

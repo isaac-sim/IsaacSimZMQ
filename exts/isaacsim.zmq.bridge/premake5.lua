@@ -32,22 +32,40 @@ project_ext_plugin(ext, ogn.plugin_project)
     add_files("source", "plugins/"..ogn.module)
     add_files("nodes", "plugins/nodes")
 
+    -- same as BUILD_SHARED_LIBS=OFF in CMake, for static linking
+    staticruntime "On"
+
     includedirs { "%{target_deps}/python/include/python3.10",
-                  "%{target_deps}/nv_usd/release/include",
+                  "%{target_deps}/usd/release/include",
                   "%{target_deps}/protobuf/include",
                   "%{target_deps}/zmq/include",
                   "%{target_deps}/zmq/cppzmq",
+                  "%{target_deps}/abseil/include",
                 }
-    libdirs { "%{target_deps}/nv_usd/release/lib",
+    libdirs { "%{target_deps}/usd/release/lib",
               "%{target_deps}/protobuf/lib",
               "%{target_deps}/zmq/lib",
+              "%{target_deps}/abseil/lib",
              }
     buildoptions { "-fexceptions" }
 
-    links { "arch", "gf", "sdf", "tf", "usd", "usdGeom", "usdUtils",
-            "zmq",
-            "protobuf", "protobuf-lite", "protoc",
+    -- Dynamic linking
+    links {"zmq"}
+
+    -- Static linking
+    linkoptions {
+        "-Wl,--allow-multiple-definition",
+        "-Wl,--whole-archive",
+        -- Abseil
+        "%{target_deps}/abseil/lib/libabsl_*.a",
+        -- Protobuf
+        "%{target_deps}/protobuf/lib/lib*.a",
+        "-Wl,--no-whole-archive"
     }
+
+    -- Begin OpenUSD
+    add_usd("arch", "gf", "sdf", "tf", "usd", "usdGeom", "usdUtils")
+    -- End OpenUSD
 
     -- Add the standard dependencies all OGN projects have; includes, libraries to link, and required compiler flags
     add_ogn_dependencies(ogn)
@@ -57,3 +75,10 @@ project_ext_plugin(ext, ogn.plugin_project)
     --     "-Wl,-rpath,\\$$ORIGIN/lib"
     -- }
     cppdialect "C++17"
+
+    -- Additional build options for static linking of abseil
+    defines { "ABSL_BUILD_DLL=0" }
+
+    filter "action:gmake*"
+        linkoptions { "-static-libgcc", "-static-libstdc++" }
+    filter {}
