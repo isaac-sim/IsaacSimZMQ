@@ -69,7 +69,7 @@ class ZMQAnnotator:
         device = "cuda" if self.use_ogn_nodes else "cpu"
 
         # Create render product for the camera
-        name = f"{camera.split('/')[-1]}_rp"
+        name = f"{camera.split('/')[-1]}_{port}_rp"
         self._rp = viewport_manager.get_render_product(camera, resolution, False, name)
         self.rp = self._rp.hydra_texture.get_render_product_path()
 

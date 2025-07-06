@@ -25,18 +25,20 @@ import server_control_message_pb2
 parser = argparse.ArgumentParser(description="Isaac Sim ZMQ Client Example")
 parser.add_argument("--port", type=int, default=5561, help="Port to subscribe data on")
 parser.add_argument("--subscribe_only", type=int, default=0, help="1 to only subscribe to data, 0 to publish and subscribe")
-parser.add_argument("--resolution", type=int, default=720, help="Image resolution (1:1 aspect ratio)")
+parser.add_argument("--resolution_x", type=int, default=720, help="Image resolution x")
+parser.add_argument("--resolution_y", type=int, default=720, help="Image resolution y")
 args = parser.parse_args()
 
 # Set up configuration based on arguments
 SUBSCRIBE_ONLY = bool(args.subscribe_only)
 PORT = args.port
-RESOLUTION = args.resolution
+RESOLUTION_X = args.resolution_x
+RESOLUTION_Y = args.resolution_y
 
 if SUBSCRIBE_ONLY:
-    print("Server is in subscribe only mode at port: {}, resolution: {}".format(PORT, RESOLUTION))
+    print("Server is in subscribe only mode at port: {}, resolution: {}x{}".format(PORT, RESOLUTION_X, RESOLUTION_Y))
 else:
-    print("Server is in publish and subscribe mode at port: {}, resolution: {}".format(PORT, RESOLUTION))
+    print("Server is in publish and subscribe mode at port: {}, resolution: {}x{}".format(PORT, RESOLUTION_X, RESOLUTION_Y))
 
 
 class FrankaVisionMission(App):
@@ -54,15 +56,16 @@ class FrankaVisionMission(App):
         App.__init__(self)
 
         # UI configuration
-        self.dimmention = RESOLUTION  # Square image dimension TODO: support non square images
-        self.expected_size = self.dimmention * self.dimmention * 4
+        self.dimmention = (RESOLUTION_X, RESOLUTION_Y)
+        self.expected_size = self.dimmention[0] * self.dimmention[1] * 4
         self.hz = 60  # Target refresh rate
 
-        self.window_name = "Isaac Sim ZMQ Camera Example"
+        self.window_name = f"Isaac Sim ZMQ Server {RESOLUTION_X}x{RESOLUTION_Y}@{PORT}"
         if SUBSCRIBE_ONLY:
-            self.window_name += " (Subscribe Only Mode)"
-        self.window_width = self.dimmention
-        self.window_height = self.dimmention + 80
+            self.window_name += " (Subscribe Only)"
+
+        self.window_width = self.dimmention[0]
+        self.window_height = self.dimmention[1] + 80
 
         # Camera parameters
         self.camera_range = [20, 200]
@@ -79,19 +82,19 @@ class FrankaVisionMission(App):
         self.actual_rate = 10  # fps - will get updated from the client
 
         # Data storage
-        self.texture_data = np.zeros((self.dimmention, self.dimmention, 4), dtype=np.float32)
-        self.depth_data = np.zeros((self.dimmention, self.dimmention, 4), dtype=np.uint8)
+        self.texture_data = np.zeros((self.dimmention[1], self.dimmention[0], 4), dtype=np.float32)
+        self.depth_data = np.zeros((self.dimmention[1], self.dimmention[0], 4), dtype=np.uint8)
         self.current_camera_command = [0, 0, 0]
 
-        self.camera_to_world = CameraToWorldSpaceTransform((self.dimmention, self.dimmention))
+        self.camera_to_world = CameraToWorldSpaceTransform((self.dimmention[0], self.dimmention[1]))
 
         self.debug_start_time = None
 
     def create_app_body(self):
         with dpg.texture_registry(show=False):
             dpg.add_raw_texture(
-                self.dimmention,
-                self.dimmention,
+                self.dimmention[0],  # width
+                self.dimmention[1],  # height
                 self.texture_data,
                 tag="image_stream",
                 format=dpg.mvFormat_Float_rgba,
@@ -302,7 +305,8 @@ class FrankaVisionMission(App):
             return
 
         if dpg.get_value("ground_truth_mode") in ["BBOX2D", "RGB"]:
-            img_array = np.frombuffer(img_data, dtype=np.uint8).reshape(self.dimmention, self.dimmention, 4)
+            # Reshape to height x width x channels
+            img_array = np.frombuffer(img_data, dtype=np.uint8).reshape(self.dimmention[1], self.dimmention[0], 4)
 
             if dpg.get_value("ground_truth_mode") == "BBOX2D":
                 try:
@@ -311,14 +315,14 @@ class FrankaVisionMission(App):
                     print(traceback.format_exc())
 
         elif dpg.get_value("ground_truth_mode") == "DEPTH":
-            img_array = np.frombuffer(depth_data, dtype=np.float32).reshape(self.dimmention, self.dimmention, 1)
+            # Reshape to height x width (rows x cols)
+            img_array = np.frombuffer(depth_data, dtype=np.float32).reshape(self.dimmention[1], self.dimmention[0], 1)
             try:
                 img_array = colorize_depth(img_array)
             except:
                 print(traceback.format_exc())
 
         np.divide(img_array, 255.0, out=self.texture_data)
-        dpg.set_value("image_stream", self.texture_data)
 
         if not SUBSCRIBE_ONLY:
             interseting_bbox = self.get_interseting_bbox(bbox2d_data)

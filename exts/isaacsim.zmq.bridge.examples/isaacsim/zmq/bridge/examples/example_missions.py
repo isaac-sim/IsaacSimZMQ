@@ -55,7 +55,8 @@ class FrankaVisionMission(Mission):
         # Simulation parameters
         self.physics_dt = 60.0  # Rate of the physics simulation
         self.camera_hz = 60.0  # Do not go above physics_dt!
-        self.dimension = 720  # Square image
+        self.dimension_x = 720
+        self.dimension_y = 720
 
         # Camera setup
         self.camera_annotator = None
@@ -98,7 +99,7 @@ class FrankaVisionMission(Mission):
         # Create camera annotator for streaming camera data
         self.camera_annotator = ZMQAnnotator(
             self._camera_path,
-            (self.dimension, self.dimension),
+            (self.dimension_x, self.dimension_y),
             use_ogn_nodes=self.use_ogn_nodes,
             server_ip=self.server_ip,
             port=self.ports["camera_annotator"],
@@ -285,17 +286,6 @@ class FrankaVisionMission(Mission):
             prim_path="/World/Franka"
         )
 
-        #########################################################
-        # Temporary fix to disable instanceable geometries on Franka asset.
-        # This is related to an open bug with OV Fabric Scene Delegate and SceneGraphInstances.
-        stage = omni.usd.get_context().get_stage()
-        for prim in stage.Traverse():
-            p = str(prim.GetPath())
-            if p.startswith("/World/Franka/") and p.endswith("geometry"):
-                prim.SetInstanceable(False)
-        #########################################################
-
-
     @classmethod
     async def _async_load(cls) -> None:
         """Load the mission asynchronously."""
@@ -352,7 +342,7 @@ class FrankaMultiVisionMission(FrankaVisionMission):
 
         self.gripper_annotator = ZMQAnnotator(
             self.gripper_camera_prim_path,
-            (self.dimension, self.dimension),
+            (self.dimension_x, self.dimension_y),
             use_ogn_nodes=self.use_ogn_nodes,
             server_ip=self.server_ip,
             port=self.ports["gripper_annotator"],

@@ -75,7 +75,7 @@ cd IsaacSimZMQ
 > **Note**: Build is required even for the [Python-only mode](#python-only-mode).
 
 <details>
-<summary><b>Isaac Sim Container</b></summary>
+<summary><b>Isaac Sim Container</b> (Not supported while Isaac Sim 5.0 in pre-release)</summary>
 
 To use the extension in an Isaac Sim container, follow these steps:
 
@@ -265,7 +265,8 @@ After running the basic examples, try to extend the functionality by:
 <details>
 <summary>Docker example app not starting</summary>
 
-When running the example app inside the docker container, you may encounter the following error, it is harmless and can be ignored.
+If you encounter X11 memory error when launching `example.py`, simply run it again.
+This error is harmless and can be ignored.
 
 ```bash
 X Error of failed request:  BadValue (integer parameter out of range for operation)

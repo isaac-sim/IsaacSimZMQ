@@ -24,7 +24,7 @@ class CameraToWorldSpaceTransform:
         Args:
             dimmentions (tuple): Image dimensions (width, height)
         """
-        self.dimmention = dimmentions[0]  # need to handle non square images
+        self.dimmention_x, self.dimmention_y = dimmentions
         self.detection_world_pos = [0, 0, 0]
         self.detection_camera_pos = [0, 0]
         self.depth_scale_factor = 1
@@ -39,8 +39,6 @@ class CameraToWorldSpaceTransform:
     ) -> None:
         """
         Compute the 3D world coordinates of the center of a bounding box.
-
-
 
         Args:
             bbox_data (dict): Bounding box data containing coordinates
@@ -60,8 +58,8 @@ class CameraToWorldSpaceTransform:
         self.detection_camera_pos = [u, v]
         point = [u, v]
 
-        # Convert depth data to numpy array
-        depth_array = np.frombuffer(depth_data, dtype=np.float32).reshape(self.dimmention, self.dimmention)
+        # Convert depth data to numpy array - reshape to height x width
+        depth_array = np.frombuffer(depth_data, dtype=np.float32).reshape(self.dimmention_y, self.dimmention_x)
         self.depth_scale_factor = 1 / camera_data["camera_scale"][0]
 
         # Simplifled implementation of
@@ -82,8 +80,8 @@ class CameraToWorldSpaceTransform:
         This method initializes tensors on the GPU to avoid repeated memory allocations
         during processing.
         """
-        # Pre-allocate memory on GPU for depth data
-        self._depth_data_gpu = torch.zeros((self.dimmention, self.dimmention), device="cuda", dtype=torch.float32)
+        # Pre-allocate memory on GPU for depth data - height x width
+        self._depth_data_gpu = torch.zeros((self.dimmention_y, self.dimmention_x), device="cuda", dtype=torch.float32)
         # Prepare placeholders for matrices on GPU
         self.view_matrix_ros_gpu = None
         self.intrinsics_matrix_gpu = None
@@ -135,6 +133,7 @@ class CameraToWorldSpaceTransform:
         self._depth_data_gpu.copy_(torch.from_numpy(depth_array).cuda())
 
         # Get the depth value at the specified point (u, v)
+        # Note: depth array is in (height, width) format, so access as [v, u]
         depth_value = self._depth_data_gpu[v, u] * self.depth_scale_factor
 
         # Create a homogeneous point (u, v, 1.0) as a tensor on the GPU
@@ -171,6 +170,7 @@ class CameraToWorldSpaceTransform:
         """
 
         u, v = point
+        # Note: depth array is in (height, width) format, so access as [v, u]
         depth_value = (depth_array[v, u]) * self.depth_scale_factor
 
         view_matrix_ros = np.array(camera_data["view_matrix_ros"])
@@ -219,6 +219,9 @@ def draw_bounding_boxes(img_array: np.ndarray, bbox_data: dict) -> np.ndarray:
     color = (118, 185, 0)  # Green color for bounding boxes
     font = cv2.FONT_HERSHEY_SIMPLEX
 
+    # Get image dimensions
+    height, width = img_with_boxes.shape[:2]
+
     for bbox in bboxes:
         semantic_id = bbox["semanticId"]
         x_min, y_min = bbox["xMin"], bbox["yMin"]
@@ -231,13 +234,18 @@ def draw_bounding_boxes(img_array: np.ndarray, bbox_data: dict) -> np.ndarray:
         # Get the label of this bbox
         label = id_to_labels.get(str(semantic_id), "Unknown")
 
+        # Ensure coordinates are within image bounds
+        u = max(0, min(u, width-1))
+        v = max(0, min(v, height-1))
+
         # Draw center point, bounding box, and label
         cv2.circle(img_with_boxes, (u, v), 10, color, 2)
         cv2.rectangle(img_with_boxes, (x_min, y_min), (x_max, y_max), color, 2)
         cv2.putText(img_with_boxes, label, (x_min, y_min - 10), font, 0.9, color, 2)
 
-    # Ensure alpha channel is fully opaque
-    img_with_boxes[:, :, 3] = 255
+    # Ensure alpha channel is fully opaque if it exists
+    if img_with_boxes.shape[2] == 4:
+        img_with_boxes[:, :, 3] = 255
     return img_with_boxes
 
 
@@ -249,26 +257,39 @@ def colorize_depth(depth_data: np.ndarray) -> np.ndarray:
     interpretable grayscale image by applying logarithmic scaling.
 
     Args:
-        depth_data (np.ndarray): Raw depth image data
+        depth_data (np.ndarray): Raw depth image data in shape (height, width, 1)
 
     Returns:
-        np.ndarray: Colorized depth image as uint8
+        np.ndarray: Colorized depth image as uint8 with shape (height, width, 4)
     """
     # https://docs.omniverse.nvidia.com/extensions/latest/ext_replicator/programmatic_visualization.html#helper-visualization-functions
     # Set near and far clipping planes
     near = 1.0
-    far = 50.0
+    far = 100.0
+
+    # Extract the depth values from the 3D array
+    depth_values = depth_data.squeeze()
 
     # Clip depth values to the specified range
-    depth_data = np.clip(depth_data, near, far)
+    depth_values = np.clip(depth_values, near, far)
 
     # Apply logarithmic scaling to better visualize depth
-    depth_data = (np.log(depth_data) - np.log(near)) / (np.log(far) - np.log(near))
+    depth_values = (np.log(depth_values) - np.log(near)) / (np.log(far) - np.log(near))
 
     # Invert so closer objects are brighter
-    depth_data = 1.0 - depth_data
+    depth_values = 1.0 - depth_values
 
     # Convert to 8-bit for display
-    depth_data_uint8 = (depth_data * 255).astype(np.uint8)
+    depth_data_uint8 = (depth_values * 255).astype(np.uint8)
 
-    return depth_data_uint8
+    # Create an RGBA image (height, width, 4)
+    height, width = depth_values.shape
+    rgba_image = np.zeros((height, width, 4), dtype=np.uint8)
+
+    # # Set RGB channels to the grayscale value
+    rgba_image[:, :, 0] = depth_data_uint8
+    rgba_image[:, :, 1] = depth_data_uint8
+    rgba_image[:, :, 2] = depth_data_uint8
+    rgba_image[:, :, 3] = 255  # Full opacity
+
+    return rgba_image
