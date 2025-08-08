@@ -52,12 +52,11 @@ The provided examples demonstrate:
 
 - Linux Ubuntu 22.04
 - [NVIDIA Isaac SIM Requirements](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/requirements.html)
-- [Isaac SIM 5.0.0 (Workstation or Container)](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_workstation.html)
+- [Isaac SIM 5.0.0 (Workstation or Container)](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html)
 - Docker
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html)
 
-> **⚠️ PRE-RELEASE SOFTWARE NOTICE**
-> Isaac Sim 5.0 is a pre-release, currently in development.
+
 > The Isaac Sim 4.5 version of this extension is avilable [here](https://github.com/isaac-sim/IsaacSimZMQ/tree/isaac-sim-4.5.0).
 
 
@@ -75,7 +74,7 @@ cd IsaacSimZMQ
 > **Note**: Build is required even for the [Python-only mode](#python-only-mode).
 
 <details>
-<summary><b>Isaac Sim Container</b> (Not supported while Isaac Sim 5.0 in pre-release)</summary>
+<summary><b>Isaac Sim Container</b></summary>
 
 To use the extension in an Isaac Sim container, follow these steps:
 
@@ -84,7 +83,7 @@ To use the extension in an Isaac Sim container, follow these steps:
 docker pull nvcr.io/nvidia/isaac-sim:5.0.0
 ```
 
-2. From this repo root, run the container + mount the extension and assets:
+1. From this repo root, run the container + mount the extension and assets:
 ```bash
 docker run --name isaac-sim --entrypoint bash -it --runtime=nvidia --gpus all -e "ACCEPT_EULA=Y" --rm --network=host \
     -e "PRIVACY_CONSENT=Y" \
@@ -100,12 +99,12 @@ docker run --name isaac-sim --entrypoint bash -it --runtime=nvidia --gpus all -e
     -v $(pwd)/assets:/root/Documents/assets:rw \
     nvcr.io/nvidia/isaac-sim:5.0.0
 ```
-3. __Inisde the container__, install the dependencies:
+1. __Inisde the container__, install the dependencies:
 ```bash
 apt-get update
 apt-get install -y libunwind8
 ```
-4. Now you can continue to the [Usage](#usage) section to run the extension.
+1. Now you can continue to the [Usage](#usage) section to run the extension.
 
 </details>
 
