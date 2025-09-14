@@ -57,7 +57,7 @@ The provided examples demonstrate:
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html)
 
 
-> The Isaac Sim 4.5 version of this extension is avilable [here](https://github.com/isaac-sim/IsaacSimZMQ/tree/isaac-sim-4.5.0).
+> The Isaac Sim 4.5 version of this extension is available [here](https://github.com/isaac-sim/IsaacSimZMQ/tree/isaac-sim-4.5.0).
 
 
 
@@ -99,7 +99,7 @@ docker run --name isaac-sim --entrypoint bash -it --runtime=nvidia --gpus all -e
     -v $(pwd)/assets:/root/Documents/assets:rw \
     nvcr.io/nvidia/isaac-sim:5.0.0
 ```
-1. __Inisde the container__, install the dependencies:
+1. __Inside the container__, install the dependencies:
 ```bash
 apt-get update
 apt-get install -y libunwind8
