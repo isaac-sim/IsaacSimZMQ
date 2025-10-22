@@ -11,6 +11,7 @@
     <filter include="imgui"/>
     <filter include="python"/>
     <filter include="usd-release"/>
+    <filter include="premake" linkPath="../_build/host-deps/premake" />
   </import>
 
   <!-- Override the link paths to point to the correct locations. -->
@@ -38,4 +39,5 @@
     <package name="nv-usd" version="22.11.nv.0.2.8268.07efe1d5-linux64_py310-centos_debug-dev_omniverse" platforms="linux-x86_64"/>
     <package name="nv-usd" version="22.11.nv.0.2.8268.07efe1d5-linux-aarch64_py310_debug-releases-106-0" platforms="linux-aarch64"/>
   </dependency>
+
 </project>

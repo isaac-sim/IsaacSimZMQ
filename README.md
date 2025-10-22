@@ -1,8 +1,10 @@
 # Isaac Sim ZMQ Bridge
 
-[![IsaacSim](https://img.shields.io/badge/IsaacSim-5.0.0-silver.svg)](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html)
-[![Linux platform](https://img.shields.io/badge/platform-linux--64-orange.svg)](https://releases.ubuntu.com/20.04/)
+[![IsaacSim](https://img.shields.io/badge/IsaacSim-5.1.0-silver.svg)](https://docs.isaacsim.omniverse.nvidia.com)
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://docs.python.org/3/whatsnew/3.11.html)
+[![Linux platform](https://img.shields.io/badge/platform-linux--64-orange.svg)](https://releases.ubuntu.com/24.04/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 
 A reference bridge implementation for bidirectional communication between NVIDIA Isaac Sim and external applications using [ZeroMQ](https://zeromq.org/) and [Protobuf](https://protobuf.dev/).
 
@@ -50,14 +52,16 @@ The provided examples demonstrate:
 
 ## Requirements
 
-- Linux Ubuntu 22.04
+- Linux Ubuntu 22.04 / 24.04
+- x86_64 / aarch64
 - [NVIDIA Isaac SIM Requirements](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/requirements.html)
-- [Isaac SIM 5.0.0 (Workstation or Container)](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html)
+- [Isaac SIM 5.1.0 (Workstation or Container)](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html)
 - Docker
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html)
 
+> For older Isaac Sim versions, checkout to `isaac-sim-x.x.x` branches in this repo
 
-> The Isaac Sim 4.5 version of this extension is available [here](https://github.com/isaac-sim/IsaacSimZMQ/tree/isaac-sim-4.5.0).
+> Building with Ubuntu 24.04 requires GCC/G++ 11 to be installed, GCC/G++ 12+ is not supported.
 
 
 
@@ -71,40 +75,63 @@ cd IsaacSimZMQ
 ```
 
 
-> **Note**: Build is required even for the [Python-only mode](#python-only-mode).
+> Build is required even for the [Python-only mode](#python-only-mode).
 
 <details>
-<summary><b>Isaac Sim Container</b></summary>
+<summary><b>Installation with the Isaac Sim Container</b></summary>
 
 To use the extension in an Isaac Sim container, follow these steps:
 
 1. Pull the [Isaac Sim container](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_container.html#):
-```bash
-docker pull nvcr.io/nvidia/isaac-sim:5.0.0
-```
+    ```bash
+    docker pull nvcr.io/nvidia/isaac-sim:5.1.0
+    ```
+2. Created host cache folders
+    ```bash
+    mkdir -p ~/docker/isaac-sim/cache/main/ov
+    mkdir -p ~/docker/isaac-sim/cache/main/warp
+    mkdir -p ~/docker/isaac-sim/cache/computecache
+    mkdir -p ~/docker/isaac-sim/config
+    mkdir -p ~/docker/isaac-sim/data/documents
+    mkdir -p ~/docker/isaac-sim/data/Kit
+    mkdir -p ~/docker/isaac-sim/logs
+    mkdir -p ~/docker/isaac-sim/pkg
+    sudo chown -R 1234:1234 ~/docker/isaac-sim
+    ```
 
-1. From this repo root, run the container + mount the extension and assets:
-```bash
-docker run --name isaac-sim --entrypoint bash -it --runtime=nvidia --gpus all -e "ACCEPT_EULA=Y" --rm --network=host \
-    -e "PRIVACY_CONSENT=Y" \
-    -v ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw \
-    -v ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw \
-    -v ~/docker/isaac-sim/cache/pip:/root/.cache/pip:rw \
-    -v ~/docker/isaac-sim/cache/glcache:/root/.cache/nvidia/GLCache:rw \
-    -v ~/docker/isaac-sim/cache/computecache:/root/.nv/ComputeCache:rw \
-    -v ~/docker/isaac-sim/logs:/root/.nvidia-omniverse/logs:rw \
-    -v ~/docker/isaac-sim/data:/root/.local/share/ov/data:rw \
-    -v ~/docker/isaac-sim/documents:/root/Documents:rw \
-    -v $(pwd)/exts:/root/Documents/exts:rw \
-    -v $(pwd)/assets:/root/Documents/assets:rw \
-    nvcr.io/nvidia/isaac-sim:5.0.0
-```
-1. __Inside the container__, install the dependencies:
-```bash
-apt-get update
-apt-get install -y libunwind8
-```
-1. Now you can continue to the [Usage](#usage) section to run the extension.
+3. From **this repo root**, run the container + mount the extension and assets:
+
+    ```bash
+    docker run --name isaac-sim-amd64 --entrypoint bash -it --gpus all --runtime nvidia -e "ACCEPT_EULA=Y" --rm --network=host \
+        -v ~/docker/isaac-sim/cache/main:/isaac-sim/.cache:rw \
+        -v ~/docker/isaac-sim/cache/computecache:/isaac-sim/.nv/ComputeCache:rw \
+        -v ~/docker/isaac-sim/logs:/isaac-sim/.nvidia-omniverse/logs:rw \
+        -v ~/docker/isaac-sim/config:/isaac-sim/.nvidia-omniverse/config:rw \
+        -v ~/docker/isaac-sim/data:/isaac-sim/.local/share/ov/data:rw \
+        -v ~/docker/isaac-sim/pkg:/isaac-sim/.local/share/ov/pkg:rw \
+        -v $(pwd)/exts:/isaac-sim/isaacsimzmq/exts:rw \
+        -v $(pwd)/assets:/isaac-sim/isaacsimzmq/assets:rw \
+        -u 1234:1234 \
+        nvcr.io/nvidia/isaac-sim:5.1.0
+    ```
+
+4. When in the container, run the extension
+
+    - In Interactive mode via Streaming (Not supported on aarch64)
+
+      ```
+      ./runheadless.sh --ext-folder /isaac-sim/isaacsimzmq/exts/ --enable isaacsim.zmq.bridge.examples
+      ```
+      Connect the the session by following the [Issac Sim WebRTC Streaming Client](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/manual_livestream_clients.html#isaac-sim-setup-livestream-webrtc) instructions.
+
+    - In [Headless Mode](#headless--python-standalone-mode)
+      ```
+      ./python.sh isaacsimzmq/exts/isaacsim.zmq.bridge.examples/isaacsim/zmq/bridge/examples/example_headless.py  --ext-folder /isaac-sim/isaacsimzmq/exts/ --enable isaacsim.zmq.bridge.examples
+      ```
+    - Note we have mounted this repo into the container into `~/isaac-sim/isaacsimzmq` for easy debugging
+
+
+<!-- 4. Now you can continue to the [Usage](#usage) section part .6 to run the exmaples. -->
 
 </details>
 

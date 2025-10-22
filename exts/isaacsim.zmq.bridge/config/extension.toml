@@ -25,16 +25,16 @@ path = "bin/*.plugin"
 # Order of linkins is critical!
 # [[native.library]]
 # path = "bin/lib/libsodium.so.23"
-[[native.library]]
-path = "bin/lib/libsodium.so.18"
-[[native.library]]
-path = "bin/lib/libpgm-5.2.so.0"
-[[native.library]]
-path = "bin/lib/libnorm.so.1"
+#[[native.library]]
+#path = "bin/lib/libsodium.so.18"
+#[[native.library]]
+#path = "bin/lib/libpgm-5.2.so.0"
+#[[native.library]]
+#path = "bin/lib/libnorm.so.1"
 [[native.library]]
 path = "bin/lib/libzmq.so.5"
-# [[native.library]]
-# path = "bin/lib/libzmq.so"
+[[native.library]]
+path = "bin/lib/libzmq.so"
 
 [documentation]
 pages = [

@@ -228,6 +228,8 @@ class ZMQAnnotator:
         This method detaches all annotators from the render product,
         destroys OGN nodes if they were created, and destroys the render product.
         """
+        self._rp.hydra_texture.set_updates_enabled(False)
+
         if self.use_ogn_nodes:
             for node in self.nodes:
                 try:
@@ -244,6 +246,7 @@ class ZMQAnnotator:
 
         # Causes instability, not recommended when kit is controlling the main thread
         # self._rp.destroy()
+        self._rp.hydra_texture.set_updates_enabled(True)
 
         print(f"[{EXT_NAME}] [port {self.port}] Annotators destroyed.")
 

@@ -39,12 +39,14 @@ project_ext_plugin(ext, ogn.plugin_project)
                   "%{target_deps}/usd/release/include",
                   "%{target_deps}/protobuf/include",
                   "%{target_deps}/zmq/include",
-                  "%{target_deps}/zmq/cppzmq",
+                  "%{target_deps}/cppzmq/include",
+                  "%{target_deps}/libsodium/include",
                   "%{target_deps}/abseil/include",
                 }
     libdirs { "%{target_deps}/usd/release/lib",
               "%{target_deps}/protobuf/lib",
               "%{target_deps}/zmq/lib",
+              "%{target_deps}/libsodium/lib",
               "%{target_deps}/abseil/lib",
              }
     buildoptions { "-fexceptions" }

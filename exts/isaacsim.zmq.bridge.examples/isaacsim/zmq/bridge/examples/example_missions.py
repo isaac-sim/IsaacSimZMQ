@@ -151,7 +151,9 @@ class FrankaVisionMission(Mission):
         await asyncio.sleep(0.5)
         if self.world.is_stopped():
             for annotator in self.camera_annotators:
+                # annotator._rp.hydra_texture.set_updates_enabled(False)
                 annotator.destroy()
+                # annotator._rp.hydra_texture.set_updates_enabled(True)
         else:
             carb.log_warn(f"[{EXT_NAME}] Cant destory annotators while simulation is running!")
 

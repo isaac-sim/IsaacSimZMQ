@@ -20,6 +20,7 @@ linux_x86_64_cxx_abi=true
 [repo_build.docker]
 enabled = false
 
+
 [repo_precache_exts]
 registries = [
   {name = "kit/default", url = "omniverse://kit-extensions.ov.nvidia.com/exts/kit/default"},
@@ -37,6 +38,7 @@ enabled = false
 [repo_build.fetch.pip]
 ignore_pip_cache_failure = true
 licensing_enabled = false
+publish_pip_cache = false
 
 [repo_build.licensing]
 enabled = false

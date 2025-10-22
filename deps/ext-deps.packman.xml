@@ -1,16 +1,28 @@
 <project toolsVersion="5.6">
 
   <dependency name="zmq" linkPath="../_build/target-deps/zmq">
-    <package name="zmq" version="4.3.2-linux-x86_64-c2496b33" platforms="${platform_target_abi}" />
+    <package name="zeromq" version="4.3.5-0-manylinux_2_35_x86_64-dynamic-release" platforms="manylinux_2_35_x86_64"/>
+    <package name="zeromq" version="4.3.5-0-manylinux_2_35_aarch64-dynamic-release" platforms="manylinux_2_35_aarch64" />
   </dependency>
 
+  <dependency name="cppzmq" linkPath="../_build/target-deps/cppzmq">
+    <package name="cppzmq" version="4.11.0-0-manylinux_2_35_x86_64-release" platforms="manylinux_2_35_x86_64"/>
+    <package name="cppzmq" version="4.11.0-0-manylinux_2_35_aarch64-release" platforms="manylinux_2_35_aarch64" />
+  </dependency>
+
+  <dependency name="libsodium" linkPath="../_build/target-deps/libsodium">
+    <package name="libsodium" version="1.0.20-0-manylinux_2_35_x86_64-dynamic-release" platforms="manylinux_2_35_x86_64" />
+    <package name="libsodium" version="1.0.20-0-manylinux_2_35_aarch64-dynamic-release" platforms="manylinux_2_35_aarch64" />
+  </dependency>
 
   <dependency name="protobuf" linkPath="../_build/target-deps/protobuf">
-    <package name="protobuf" version="5.26.0-2-manylinux_2_35_x86_64-static-release" platforms="${platform_target_abi}" />
+    <package name="protobuf" version="5.26.0-2-manylinux_2_35_x86_64-static-release" platforms="manylinux_2_35_x86_64" />
+    <package name="protobuf" version="5.26.0-2-manylinux_2_35_aarch64-static-release" platforms="manylinux_2_35_aarch64" />
   </dependency>
 
   <dependency name="abseil" linkPath="../_build/target-deps/abseil">
-    <package name="abseil" version="20240116.1-1-manylinux_2_35_x86_64-static-release" platforms="${platform_target_abi}" />
+    <package name="abseil" version="20240116.1-1-manylinux_2_35_x86_64-static-release" platforms="manylinux_2_35_x86_64" />
+    <package name="abseil" version="20240116.1-1-manylinux_2_35_aarch64-static-release" platforms="manylinux_2_35_aarch64" />
   </dependency>
 
 </project>

@@ -6,6 +6,6 @@ packages = [
 ]
 
 target = "../_build/target-deps/pip_prebundle"
-platforms = ["*-x86_64"]
+platforms = ["*-x86_64", "*-aarch64"]
 download_only = false
 append_to_install_folder = true
