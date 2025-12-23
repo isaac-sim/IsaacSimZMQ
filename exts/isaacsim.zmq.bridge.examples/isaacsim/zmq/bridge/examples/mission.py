@@ -112,13 +112,23 @@ class Mission:
         carb.log_warn(f"[{EXT_NAME}] reset world async: NOT IMPLEMENTED")
 
     @classmethod
-    async def _async_load(cls, source_usd: str) -> None:
+    async def _async_load(self) -> None:
+        """
+        Prepare the world for reset
+        """
+        carb.log_warn(f"[{EXT_NAME}]_async_load: NOT IMPLEMENTED")
+
+    @classmethod
+    async def _async_load_stage(cls, source_usd: str, mission) -> None:
+        if mission:
+            print(f"[{EXT_NAME}] stopping runnig mission")
+            await mission.stop_mission_async()
         await stage_utils.open_stage_async(source_usd)
 
     @classmethod
-    def load_mission_async(cls) -> None:
+    def load_mission_async(cls, mission_instance) -> None:
         print(f"[{EXT_NAME}] loading mission")
-        asyncio.ensure_future(cls._async_load())
+        asyncio.ensure_future(cls._async_load(mission_instance))
 
     async def stop_mission_async(self) -> None:
         """

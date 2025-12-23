@@ -39,12 +39,12 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
         self._franka_mission_menu = MenuItemDescription(
             name="Franka RMPFlow",
             glyph="plug.svg",
-            onclick_fn=FrankaVisionMission.load_mission_async,
+            onclick_fn=partial(self.load_mission, FrankaVisionMission),
         )
         self._franka_multi_mission_menu = MenuItemDescription(
             name="Franka RMPFlow (Multi Camera)",
             glyph="plug.svg",
-            onclick_fn=FrankaMultiVisionMission.load_mission_async,
+            onclick_fn=partial(self.load_mission, FrankaMultiVisionMission),
         )
 
         self._menu_items = [
@@ -72,6 +72,9 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
             .create_subscription_to_pop(self.timeline_event,
                                         name="timeline_event")
         )
+
+    def load_mission(self, mission_class) -> None:
+        mission_class.load_mission_async(self.mission)
 
     def timeline_event(self, event) -> None:
         if event.type == int(omni.timeline.TimelineEventType.STOP):
@@ -146,3 +149,4 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
 
         self.stage_load_sub = None
         self.timeline_sub = None
+        self.update_sub = None

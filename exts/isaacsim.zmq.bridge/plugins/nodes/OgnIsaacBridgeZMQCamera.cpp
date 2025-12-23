@@ -129,8 +129,8 @@ pxr::GfMatrix3d OgnIsaacBridgeZMQCamera::get_intrinsics_matrix(const pxr::UsdPri
 bool OgnIsaacBridgeZMQCamera::compute(OgnIsaacBridgeZMQCameraDatabase& db)
 {
     // Get USD Stage
-    const IPath& iPath = *db.abi_context().iPath;
-    long stageId = db.abi_context().iContext->getStageId(db.abi_context());
+    const GraphContextObj& context = db.abi_context();
+    long stageId = context.iContext->getStageId(context);
     pxr::UsdStageRefPtr stage = pxr::UsdUtilsStageCache::Get().Find(pxr::UsdStageCache::Id::FromLongInt(stageId));
 
     // // // Get Camera Prim

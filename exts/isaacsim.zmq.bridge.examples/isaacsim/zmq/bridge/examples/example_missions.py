@@ -289,9 +289,9 @@ class FrankaVisionMission(Mission):
         )
 
     @classmethod
-    async def _async_load(cls) -> None:
+    async def _async_load(cls, mission_instance) -> None:
         """Load the mission asynchronously."""
-        await Mission._async_load(cls.mission_usd_path())
+        await Mission._async_load_stage(cls.mission_usd_path(), mission_instance)
         cls.add_franka()
         await asyncio.sleep(0.5)
         omni.kit.selection.SelectNoneCommand().do()
@@ -313,24 +313,24 @@ class FrankaMultiVisionMission(FrankaVisionMission):
 
     name = "FrankaMultiVisionMission"
     world_usd_path = "franka_multi_cam_world.usda"
+    gripper_camera_prim_path = "/World/Franka/panda_hand/gripper_camera"
+    gripper_camera_pos = (0.1, 0.0, -0.1)
+    gripper_camera_rot = euler_angles_to_quat((180, 15, 0), degrees=True)
 
     @classmethod
     def add_franka(cls) -> None:
         """Add a Franka robot with an additional gripper camera to the scene."""
         super().add_franka()
-        cls.gripper_camera_prim_path = "/World/Franka/panda_hand/gripper_camera"
         gripper_camera = Camera(prim_path=cls.gripper_camera_prim_path)
         gripper_camera.set_clipping_range(0.01, 10000)
         gripper_camera.set_visibility(False)
 
-        gripper_camera.set_lens_distortion_model("OmniLensDistortionFthetaAPI")
+        gripper_camera.set_lens_distortion_model("OmniLensDistortionOpenCvFisheyeAPI")
 
-        pos = (0.1, 0.0, 0)
-        rot = euler_angles_to_quat((190, 0, 0), degrees=True)
-        gripper_camera_xform = XFormPrim(prim_paths_expr="/World/Franka/panda_hand/gripper_camera")
-        gripper_camera_xform.set_local_poses(translations=np.array([pos]), orientations=np.array([rot]))
-
-
+        gripper_camera_xform = XFormPrim(prim_paths_expr=cls.gripper_camera_prim_path)
+        gripper_camera_xform.set_local_poses(
+            translations=np.array([cls.gripper_camera_pos]), orientations=np.array([cls.gripper_camera_rot])
+        )
 
     def start_mission(self) -> None:
         """Start the mission with multiple cameras.
@@ -359,3 +359,11 @@ class FrankaMultiVisionMission(FrankaVisionMission):
             self.zmq_client.add_physx_step_callback(
                 "gripper_annotator", 1 / self.camera_hz, self.gripper_annotator.stream
             )
+
+    def reset_franka_mission(self) -> None:
+        super().reset_franka_mission()
+        gripper_camera_xform = XFormPrim(prim_paths_expr=self.gripper_camera_prim_path)
+        gripper_camera_xform.set_local_poses(
+            translations=np.array([self.gripper_camera_pos]),
+            orientations=np.array([self.gripper_camera_rot])
+        )

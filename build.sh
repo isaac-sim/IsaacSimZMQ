@@ -3,6 +3,22 @@ set -e
 
 SCRIPT_DIR=$(dirname "${BASH_SOURCE}")
 
+if [ "$(uname -m)" = "aarch64" ]; then
+    # Check if gcc-11 and g++-11 are available
+    if [ -f "/usr/bin/gcc-11" ] && [ -f "/usr/bin/g++-11" ]; then
+        export CC=/usr/bin/gcc-11
+        export CXX=/usr/bin/g++-11
+        echo "aarch64 detected: Using gcc-11 and g++-11 from /usr/bin"
+    else
+        GCC_VERSION=$(gcc -dumpversion | cut -d. -f1)
+        if [ "$GCC_VERSION" -ge 12 ]; then
+            echo "Error: GCC version $GCC_VERSION is not supported on aarch64. GCC version must be less than 12."
+            exit 1
+        fi
+        echo "aarch64 detected: GCC version $GCC_VERSION is compatible (< 12)"
+    fi
+fi
+
 # First we must fetch dependencies, to be able to compile protobuf
 bash "$SCRIPT_DIR/repo.sh" build --fetch-only || exit $?
 

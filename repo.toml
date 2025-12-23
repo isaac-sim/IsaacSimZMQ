@@ -3,7 +3,6 @@
 ########################################################################################################################
 
 [repo]
-
 # Use the Kit Template repo configuration as a base. Only override things specific to the repo.
 import_configs = ["${root}/_repo/deps/repo_kit_tools/kit-template/repo.toml"]
 
@@ -22,15 +21,10 @@ enabled = false
 
 
 [repo_precache_exts]
-registries = [
-  {name = "kit/default", url = "omniverse://kit-extensions.ov.nvidia.com/exts/kit/default"},
-  {name = "kit/sdk", url = "omniverse://kit-extensions.ov.nvidia.com/exts/kit/sdk/${kit_version_short}/${kit_git_hash}"},
-]
-
 ext_folders = [
   "${root}/exts",
-  "${root}/exts/apps",
 ]
+
 
 [repo_symstore]
 enabled = false
@@ -42,3 +36,10 @@ publish_pip_cache = false
 
 [repo_build.licensing]
 enabled = false
+
+[[repo_kit_pull_extensions.environment]]
+name = "integ"
+app_version_regex = ""
+"tokens.registry_url" = "https://ovextensionsprod.blob.core.windows.net"
+"tokens.registry_shared_name" = "shared"
+"tokens.registry_name" = "kit/prod"
