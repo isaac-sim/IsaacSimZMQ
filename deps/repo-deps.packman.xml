@@ -3,7 +3,7 @@
     <package name="repo_man" version="1.92.5" />
   </dependency>
   <dependency name="repo_build" linkPath="../_repo/deps/repo_build">
-    <package name="repo_build" version="1.17.1" />
+    <package name="repo_build" version="1.23.0" />
   </dependency>
   <dependency name="repo_test" linkPath="../_repo/deps/repo_test">
     <package name="repo_test" version="2.42.1" />
@@ -26,4 +26,9 @@
   <!-- <dependency name="repo_usd" linkPath="../_repo/deps/repo_usd">
     <package name="repo_usd" version="5.0.12" />
   </dependency> -->
+
+  <!-- docs build: tool for building and publishing documentation (migrated from isaacsim-docs) -->
+  <dependency name="repo_docs" linkPath="../_repo/deps/repo_docs">
+    <package name="repo_docs" version="2.5.0-dev.3412+mr536.1957a5a5" />
+  </dependency>
 </project>
