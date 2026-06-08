@@ -3,7 +3,7 @@
 
 import time
 
-from isaacsim.core.api.world import World
+from isaacsim.core.simulation_manager import SimulationManager
 
 
 # Concept mechanisim for controling stream rate, only used when not using c++ nodes
@@ -37,7 +37,6 @@ class RateLimitedCallback:
             start_time (float): Real world time at which the simulation started
             adeptive_rate (bool): Whether to adaptively adjust the rate based on execution time
         """
-        self.world = World.instance()
         self.name = name
         self.fn = fn  # function to call at rate
         self.rate = rate  # 1/Hz
@@ -88,14 +87,14 @@ class RateLimitedCallback:
             self.adj_rate = self.rate
 
         # -> Times here are simulated physical times
-        elapsed_time = self.world.current_time - self.previous_step_time
-        self.previous_step_time = self.world.current_time
+        elapsed_time = SimulationManager.get_simulation_time() - self.previous_step_time
+        self.previous_step_time = SimulationManager.get_simulation_time()
 
         # Accumulate time until we reach the adjusted rate
         self.accumulated_time += elapsed_time
 
         # Execute the callback when enough time has accumulated
         if self.accumulated_time >= self.adj_rate:
-            self.last_exec_time = self.fn(self.rate, self.world.current_time)
+            self.last_exec_time = self.fn(self.rate, SimulationManager.get_simulation_time())
             self.accumulated_time -= self.adj_rate
             self.exec_count += 1

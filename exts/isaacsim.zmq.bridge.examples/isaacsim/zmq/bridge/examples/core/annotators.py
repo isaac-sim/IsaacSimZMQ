@@ -5,24 +5,23 @@ import asyncio
 import time
 import traceback
 
-import zmq
-
 import carb
 import omni.graph.core as og
 import omni.replicator.core as rep
 import omni.usd
-from isaacsim.core.api.sensors import BaseSensor
-from isaacsim.core.prims import XFormPrim
+import zmq
+from isaacsim.core.experimental.prims import XformPrim
 from isaacsim.sensors.camera import Camera
-from omni.kit.viewport.utility import get_active_viewport_window
-from omni.replicator.core.scripts.utils import viewport_manager
-from omni.syntheticdata import SyntheticData
-
-from .. import EXT_NAME
 
 # The omni.__proto__ namespace is created by this extention
 # read more at core.proto_util.py
 from omni.__proto__ import client_stream_message_pb2
+from omni.kit.viewport.utility import get_active_viewport_window
+from omni.replicator.core.scripts.utils import viewport_manager
+from omni.syntheticdata import SyntheticData
+from pxr import Gf, Usd, UsdGeom
+
+from .. import EXT_NAME
 
 
 class ZMQAnnotator:
@@ -95,15 +94,12 @@ class ZMQAnnotator:
             self.build_graph(name, camera)
         else:
             # Attache to Camera Prim for Python mode
-            self.camera_xform = XFormPrim(camera)
+            self.camera_xform = XformPrim(camera)
             self.camera = Camera(
                 prim_path=camera,
                 render_product_path=self.rp,
                 resolution=resolution,
             )
-            BaseSensor.initialize(self.camera)
-            # Not calling full initialization (self.camera.initialize()),
-            # since we've taken care of that above
             self.last_error_time = 0  # for throttling error rate
 
         print(f"[{EXT_NAME}] [Port: {self.port}] Constructed annotator.")
@@ -127,10 +123,22 @@ class ZMQAnnotator:
 
         # create/assign physics step, sync and time nodes
         _physics_nodes = {
-            "physics_step": {"node_type": "isaacsim.core.nodes.OnPhysicsStep", "node": None},
-            "sync": {"node_type": "omni.graph.action.RationalTimeSyncGate", "node": None},
-            "sim_time": {"node_type": "isaacsim.core.nodes.IsaacReadSimulationTime", "node": None},
-            "sys_time": {"node_type": "isaacsim.core.nodes.IsaacReadSystemTime", "node": None},
+            "physics_step": {
+                "node_type": "isaacsim.core.nodes.OnPhysicsStep",
+                "node": None,
+            },
+            "sync": {
+                "node_type": "omni.graph.action.RationalTimeSyncGate",
+                "node": None,
+            },
+            "sim_time": {
+                "node_type": "isaacsim.core.nodes.IsaacReadSimulationTime",
+                "node": None,
+            },
+            "sys_time": {
+                "node_type": "isaacsim.core.nodes.IsaacReadSystemTime",
+                "node": None,
+            },
         }
         for node_name, _ in _physics_nodes.items():
             node = self.graph.get_node(_graph_path + f"/{node_name}")
@@ -156,14 +164,18 @@ class ZMQAnnotator:
 
         # create zmq node
         zmq_ = self.graph.create_node(
-            _graph_path + "/zmq{}".format(self.port), "isaacsim.zmq.bridge.OgnIsaacBridgeZMQNode", True
+            _graph_path + "/zmq{}".format(self.port),
+            "isaacsim.zmq.bridge.OgnIsaacBridgeZMQNode",
+            True,
         )
         zmq_.get_attribute("inputs:port").set(self.port)
         zmq_.get_attribute("inputs:ip").set(self.server_ip)
 
         # create camera info node
         camera_ = self.graph.create_node(
-            _graph_path + "/camera{}".format(self.port), "isaacsim.zmq.bridge.OgnIsaacBridgeZMQCamera", True
+            _graph_path + "/camera{}".format(self.port),
+            "isaacsim.zmq.bridge.OgnIsaacBridgeZMQCamera",
+            True,
         )
         camera_.get_attribute("inputs:cameraPrimPath").set(camera_path)
         camera_.get_attribute("inputs:width").set(self.resolution[0])
@@ -197,7 +209,16 @@ class ZMQAnnotator:
             annot_var_mapping["bounding_box_2d_tight_fast"] = {
                 "node_name": f"{pfx}bounding_box_2d_tight_fast",
                 "attr_suffix": "BBox2d",
-                "attrs": ["bboxIds", "bufferSize", "data", "height", "width", "primPaths", "labels", "ids"],
+                "attrs": [
+                    "bboxIds",
+                    "bufferSize",
+                    "data",
+                    "height",
+                    "width",
+                    "primPaths",
+                    "labels",
+                    "ids",
+                ],
             }
         for an, _params in annot_var_mapping.items():
             ptr_node = self.graph.get_node(_graph_path + _params["node_name"])
@@ -308,7 +329,8 @@ class ZMQAnnotator:
             # Camera.get_intrinsics_matrix() will throw exception for non pinhole cameras
             # I this case, we will not stream camera data
             carb.log_verbose(traceback.format_exc())
-        camera.camera_scale.extend(self.camera_xform.get_world_scales()[0].tolist())
+        world_xform = UsdGeom.Xformable(self.camera_xform.prims[0]).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        camera.camera_scale.extend(list(Gf.Transform(world_xform).GetScale()))
         client_stream.camera.CopyFrom(camera)
 
         # Fill Clock information

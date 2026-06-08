@@ -235,8 +235,8 @@ def draw_bounding_boxes(img_array: np.ndarray, bbox_data: dict) -> np.ndarray:
         label = id_to_labels.get(str(semantic_id), "Unknown")
 
         # Ensure coordinates are within image bounds
-        u = max(0, min(u, width-1))
-        v = max(0, min(v, height-1))
+        u = max(0, min(u, width - 1))
+        v = max(0, min(v, height - 1))
 
         # Draw center point, bounding box, and label
         cv2.circle(img_with_boxes, (u, v), 10, color, 2)

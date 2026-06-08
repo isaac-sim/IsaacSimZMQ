@@ -8,6 +8,7 @@ import time
 import traceback
 from pprint import pprint
 
+import cv2
 import dearpygui.dearpygui as dpg
 import numpy as np
 
@@ -24,7 +25,9 @@ import server_control_message_pb2
 
 parser = argparse.ArgumentParser(description="Isaac Sim ZMQ Client Example")
 parser.add_argument("--port", type=int, default=5561, help="Port to subscribe data on")
-parser.add_argument("--subscribe_only", type=int, default=0, help="1 to only subscribe to data, 0 to publish and subscribe")
+parser.add_argument(
+    "--subscribe_only", type=int, default=0, help="1 to only subscribe to data, 0 to publish and subscribe"
+)
 parser.add_argument("--resolution_x", type=int, default=720, help="Image resolution x")
 parser.add_argument("--resolution_y", type=int, default=720, help="Image resolution y")
 args = parser.parse_args()
@@ -38,7 +41,11 @@ RESOLUTION_Y = args.resolution_y
 if SUBSCRIBE_ONLY:
     print("Server is in subscribe only mode at port: {}, resolution: {}x{}".format(PORT, RESOLUTION_X, RESOLUTION_Y))
 else:
-    print("Server is in publish and subscribe mode at port: {}, resolution: {}x{}".format(PORT, RESOLUTION_X, RESOLUTION_Y))
+    print(
+        "Server is in publish and subscribe mode at port: {}, resolution: {}x{}".format(
+            PORT, RESOLUTION_X, RESOLUTION_Y
+        )
+    )
 
 
 class FrankaVisionMission(App):
@@ -55,8 +62,12 @@ class FrankaVisionMission(App):
 
         App.__init__(self)
 
-        # UI configuration
+        # UI configuration (dimmention = native ZMQ resolution, display_dimention = HiDPI-scaled)
         self.dimmention = (RESOLUTION_X, RESOLUTION_Y)
+        self.display_dimention = (
+            int(RESOLUTION_X * self.dpi_scale),
+            int(RESOLUTION_Y * self.dpi_scale),
+        )
         self.expected_size = self.dimmention[0] * self.dimmention[1] * 4
         self.hz = 60  # Target refresh rate
 
@@ -64,8 +75,8 @@ class FrankaVisionMission(App):
         if SUBSCRIBE_ONLY:
             self.window_name += " (Subscribe Only)"
 
-        self.window_width = self.dimmention[0]
-        self.window_height = self.dimmention[1] + 80
+        self.window_width = self.display_dimention[0]
+        self.window_height = self.display_dimention[1] + int(80 * self.ui_scale)
 
         # Camera parameters
         self.camera_range = [20, 200]
@@ -81,8 +92,8 @@ class FrankaVisionMission(App):
         self.num_receive_annotations = 0
         self.actual_rate = 10  # fps - will get updated from the client
 
-        # Data storage
-        self.texture_data = np.zeros((self.dimmention[1], self.dimmention[0], 4), dtype=np.float32)
+        # Data storage (texture at display size for 1:1 blit, depth at native size for CV math)
+        self.texture_data = np.zeros((self.display_dimention[1], self.display_dimention[0], 4), dtype=np.float32)
         self.depth_data = np.zeros((self.dimmention[1], self.dimmention[0], 4), dtype=np.uint8)
         self.current_camera_command = [0, 0, 0]
 
@@ -91,10 +102,11 @@ class FrankaVisionMission(App):
         self.debug_start_time = None
 
     def create_app_body(self):
+        s = self.ui_scale  # shorthand for scaling positions/widths
         with dpg.texture_registry(show=False):
             dpg.add_raw_texture(
-                self.dimmention[0],  # width
-                self.dimmention[1],  # height
+                self.display_dimention[0],  # width
+                self.display_dimention[1],  # height
                 self.texture_data,
                 tag="image_stream",
                 format=dpg.mvFormat_Float_rgba,
@@ -111,8 +123,13 @@ class FrankaVisionMission(App):
             for index, (tag, label_tag, label, tip) in enumerate(times):
                 with dpg.value_registry():
                     dpg.add_string_value(tag=tag, default_value="0.0")
-                dpg.add_text(label, pos=(10, 10 + (20 * index)))
-                dpg.add_text(source=tag, label=tag, pos=(120, 10 + (20 * index)), tag=label_tag)
+                dpg.add_text(label, pos=(int(10 * s), int((10 + 20 * index) * s)))
+                dpg.add_text(
+                    source=tag,
+                    label=tag,
+                    pos=(int(120 * s), int((10 + 20 * index) * s)),
+                    tag=label_tag,
+                )
                 with dpg.tooltip(label_tag):
                     dpg.add_text(tip)
 
@@ -128,7 +145,7 @@ class FrankaVisionMission(App):
                     dpg.add_combo(
                         items=["RGB", "BBOX2D", "DEPTH"],
                         default_value="BBOX2D",
-                        width=100,
+                        width=int(100 * s),
                         tag="ground_truth_mode",
                     )
                     dpg.add_text("Focal Length", show=not SUBSCRIBE_ONLY)
@@ -137,7 +154,7 @@ class FrankaVisionMission(App):
                         default_value=20,
                         min_value=self.camera_range[0],
                         max_value=self.camera_range[1],
-                        width=80,
+                        width=int(80 * s),
                         show=not SUBSCRIBE_ONLY,
                     )
                     dpg.add_text("Draw Detection on World", show=not SUBSCRIBE_ONLY)
@@ -322,11 +339,16 @@ class FrankaVisionMission(App):
             except:
                 print(traceback.format_exc())
 
+        # Upscale to display-sized texture if HiDPI is active
+        if img_array.shape[:2] != self.texture_data.shape[:2]:
+            img_array = cv2.resize(img_array, self.display_dimention, interpolation=cv2.INTER_LINEAR)
         np.divide(img_array, 255.0, out=self.texture_data)
 
         if not SUBSCRIBE_ONLY:
             interseting_bbox = self.get_interseting_bbox(bbox2d_data)
-            self.camera_to_world.get_bbox_center_in_world_coords(interseting_bbox, depth_data, camera_data, device="cuda")
+            self.camera_to_world.get_bbox_center_in_world_coords(
+                interseting_bbox, depth_data, camera_data, device="cuda"
+            )
 
     def get_interseting_bbox(self, bbox_data: dict) -> None:
         index = -1

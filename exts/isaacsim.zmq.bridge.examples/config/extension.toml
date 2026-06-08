@@ -1,5 +1,5 @@
 [package]
-version = "1.1.0"
+version = "1.2.0"
 authors = ["Lior Ben Horin <lbenhorin@nvidia.com>"]
 title = "isaacsim zmq bridge examples"
 description="Extention to facilitate communication between Isaac SIM and External application via ZMQ"

@@ -1,6 +1,6 @@
 # Isaac Sim ZMQ Bridge
 
-[![IsaacSim](https://img.shields.io/badge/IsaacSim-5.1.0-silver.svg)](https://docs.isaacsim.omniverse.nvidia.com)
+[![IsaacSim](https://img.shields.io/badge/IsaacSim-6.0.0-silver.svg)](https://docs.isaacsim.omniverse.nvidia.com)
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://docs.python.org/3/whatsnew/3.11.html)
 [![Linux platform](https://img.shields.io/badge/platform-linux--64-orange.svg)](https://releases.ubuntu.com/24.04/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -9,6 +9,7 @@
 A reference bridge implementation for bidirectional communication between NVIDIA Isaac Sim and external applications using [ZeroMQ](https://zeromq.org/) and [Protobuf](https://protobuf.dev/).
 
 ![Architecture of the client-server](/exts/isaacsim.zmq.bridge.examples/data/arch.png)
+
 
 ## Table of Contents
 
@@ -55,7 +56,7 @@ The provided examples demonstrate:
 - Linux Ubuntu 22.04 / 24.04
 - x86_64 / aarch64
 - [NVIDIA Isaac SIM Requirements](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/requirements.html)
-- [Isaac SIM 5.1.0 (Workstation or Container)](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html)
+- [Isaac SIM 6.0.0 (Workstation or Container)](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html)
 - Docker
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html)
 
@@ -84,7 +85,7 @@ To use the extension in an Isaac Sim container, follow these steps:
 
 1. Pull the [Isaac Sim container](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_container.html#):
     ```bash
-    docker pull nvcr.io/nvidia/isaac-sim:5.1.0
+    docker pull nvcr.io/nvidia/isaac-sim:6.0.0
     ```
 2. Created host cache folders
     ```bash
@@ -112,7 +113,7 @@ To use the extension in an Isaac Sim container, follow these steps:
         -v $(pwd)/exts:/isaac-sim/isaacsimzmq/exts:rw \
         -v $(pwd)/assets:/isaac-sim/isaacsimzmq/assets:rw \
         -u 1234:1234 \
-        nvcr.io/nvidia/isaac-sim:5.1.0
+        nvcr.io/nvidia/isaac-sim:6.0.0
     ```
 
 4. When in the container, run the extension

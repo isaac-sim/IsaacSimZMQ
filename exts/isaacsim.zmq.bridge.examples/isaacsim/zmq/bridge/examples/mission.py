@@ -4,13 +4,14 @@
 import asyncio
 import time
 from pathlib import Path
-import zmq.asyncio
 
-import omni
 import carb
-
 import isaacsim.core.utils.stage as stage_utils
-from isaacsim.core.api.world import World
+import omni
+import omni.kit.app
+import omni.timeline
+import zmq.asyncio
+from isaacsim.core.simulation_manager import SimulationManager
 
 from . import EXT_NAME, ZMQClient
 
@@ -50,11 +51,11 @@ class Mission:
         carb.log_warn(f"[{EXT_NAME}] start mission: NOT IMPLEMENTED")
 
     def reset_world(self) -> None:
-        self.world = World(physics_dt=1.0 / self.physics_dt)
-        # Clear only the registry to maintain stage structure
-        self.world.scene.clear(registry_only=True)
+        timeline = omni.timeline.get_timeline_interface()
+        timeline.stop()
+        SimulationManager.setup_simulation(dt=1.0 / self.physics_dt)
         self.before_reset_world()
-        self.world.reset()
+        timeline.play()
         self.after_reset_world()
 
     def stop_mission(self) -> None:
@@ -112,13 +113,23 @@ class Mission:
         carb.log_warn(f"[{EXT_NAME}] reset world async: NOT IMPLEMENTED")
 
     @classmethod
-    async def _async_load(cls, source_usd: str) -> None:
+    async def _async_load(self) -> None:
+        """
+        Prepare the world for reset
+        """
+        carb.log_warn(f"[{EXT_NAME}]_async_load: NOT IMPLEMENTED")
+
+    @classmethod
+    async def _async_load_stage(cls, source_usd: str, mission) -> None:
+        if mission:
+            print(f"[{EXT_NAME}] stopping runnig mission")
+            await mission.stop_mission_async()
         await stage_utils.open_stage_async(source_usd)
 
     @classmethod
-    def load_mission_async(cls) -> None:
+    def load_mission_async(cls, mission_instance) -> None:
         print(f"[{EXT_NAME}] loading mission")
-        asyncio.ensure_future(cls._async_load())
+        asyncio.ensure_future(cls._async_load(mission_instance))
 
     async def stop_mission_async(self) -> None:
         """
@@ -131,13 +142,13 @@ class Mission:
         similar to reset_world() but async
         """
         await self.stop_mission_async()
-        self.world = World(physics_dt=1.0 / self.physics_dt)
-        # Clear only the registry to maintain stage structure
-        self.world.scene.clear(registry_only=True)
-        # Initialize simulation context asynchronously
-        await self.world.initialize_simulation_context_async()
+        timeline = omni.timeline.get_timeline_interface()
+        timeline.stop()
+        await omni.kit.app.get_app().next_update_async()
+        SimulationManager.setup_simulation(dt=1.0 / self.physics_dt)
         self.before_reset_world()
-        await self.world.reset_async()
+        timeline.play()
+        await omni.kit.app.get_app().next_update_async()
         self.after_reset_world()
         self.start_mission()
 

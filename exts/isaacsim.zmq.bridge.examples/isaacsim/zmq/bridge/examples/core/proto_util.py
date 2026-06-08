@@ -1,11 +1,12 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: MIT
 
-import carb
-import omni
 import importlib
 import sys
 import types
+
+import carb
+import omni
 
 
 def register_proto_modules():
