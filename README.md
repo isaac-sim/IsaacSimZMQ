@@ -11,8 +11,6 @@ A reference bridge implementation for bidirectional communication between NVIDIA
 ![Architecture of the client-server](/exts/isaacsim.zmq.bridge.examples/data/arch.png)
 
 
-> ⚠️ **Note** — This project targets Isaac Sim 6.0.0, which is currently in pre-release. Some functionality may not work until the stable release is made public.
-
 ## Table of Contents
 
 - [Overview](#overview)
@@ -87,7 +85,7 @@ To use the extension in an Isaac Sim container, follow these steps:
 
 1. Pull the [Isaac Sim container](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_container.html#):
     ```bash
-    docker pull nvcr.io/nvidia/isaac-sim:5.1.0
+    docker pull nvcr.io/nvidia/isaac-sim:6.0.0
     ```
 2. Created host cache folders
     ```bash
@@ -115,7 +113,7 @@ To use the extension in an Isaac Sim container, follow these steps:
         -v $(pwd)/exts:/isaac-sim/isaacsimzmq/exts:rw \
         -v $(pwd)/assets:/isaac-sim/isaacsimzmq/assets:rw \
         -u 1234:1234 \
-        nvcr.io/nvidia/isaac-sim:5.1.0
+        nvcr.io/nvidia/isaac-sim:6.0.0
     ```
 
 4. When in the container, run the extension

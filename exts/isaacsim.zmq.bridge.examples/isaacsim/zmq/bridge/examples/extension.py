@@ -6,12 +6,12 @@ from functools import partial
 
 import carb
 import omni.ext
+import omni.timeline
 import omni.ui as ui
 import omni.usd
 from omni.kit.menu.utils import MenuItemDescription, add_menu_items, remove_menu_items
 from omni.kit.notification_manager import post_notification
 from omni.kit.widget.toolbar import get_instance
-import omni.timeline
 
 from . import EXT_NAME
 from .example_missions import FrankaMultiVisionMission, FrankaVisionMission
@@ -66,11 +66,8 @@ class IsaacSimZMQBridgeExamples(omni.ext.IExt):
 
         # Subscribe to timeline events to detect when the timeline is stopped
         self.timeline = omni.timeline.get_timeline_interface()
-        self.timeline_sub = (
-            self.timeline
-            .get_timeline_event_stream()
-            .create_subscription_to_pop(self.timeline_event,
-                                        name="timeline_event")
+        self.timeline_sub = self.timeline.get_timeline_event_stream().create_subscription_to_pop(
+            self.timeline_event, name="timeline_event"
         )
 
     def load_mission(self, mission_class) -> None:

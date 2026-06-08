@@ -81,3 +81,6 @@ WORKDIR /isaac-zmq-server/src
 
 # Add the source code to the image (We will also mount it for dynamic updates)
 ADD ./src /isaac-zmq-server/src
+
+ENV NVIDIA_DRIVER_CAPABILITIES=all
+ENV __GL_THREADED_OPTIMIZATIONS=0

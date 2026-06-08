@@ -4,30 +4,34 @@
 import asyncio
 import time
 
-
 import carb
-import numpy as np
-import omni.usd
-from isaacsim.core.api.robots import Robot
-from isaacsim.core.prims import XFormPrim
-from isaacsim.core.utils.rotations import euler_angles_to_quat
-from isaacsim.core.utils.types import ArticulationAction
-from isaacsim.robot.manipulators.examples.franka import Franka
-from isaacsim.robot.manipulators.examples.franka.controllers.rmpflow_controller import (
-    RMPFlowController,
-)
+import isaacsim.core.experimental.utils.app as app_utils
 import isaacsim.core.utils.stage as stage_utils
+import isaacsim.robot_motion.experimental.motion_generation as mg
+import numpy as np
+import omni.timeline
+import omni.usd
+import warp as wp
+from isaacsim.core.experimental.prims import Articulation, GeomPrim, XformPrim
+from isaacsim.core.simulation_manager import SimulationManager
+from isaacsim.core.utils.rotations import euler_angles_to_quat
+from isaacsim.robot_motion.cumotion import (
+    CumotionWorldInterface,
+    RmpFlowController,
+    load_cumotion_supported_robot,
+)
 from isaacsim.sensors.camera import Camera
 from isaacsim.storage.native import get_assets_root_path
 from isaacsim.util.debug_draw import _debug_draw
+
+# The omni.__proto__ namespace is created by this extention
+# read more at coreproto_util.py
+from omni.__proto__ import server_control_message_pb2
 from pxr import Gf, Sdf, Tf, Usd, UsdGeom, UsdPhysics, UsdShade
 
 from . import EXT_NAME, ZMQAnnotator
 from .mission import Mission
 
-# The omni.__proto__ namespace is created by this extention
-# read more at coreproto_util.py
-from omni.__proto__ import server_control_message_pb2
 
 class FrankaVisionMission(Mission):
     """Mission that demonstrates a Franka robot with vision capabilities.
@@ -63,6 +67,16 @@ class FrankaVisionMission(Mission):
         self.camera_annotators = []
 
         self.use_ogn_nodes = True  # True > use OGN C++ node, False > use Python
+
+        # cuMotion robot config (constant across resets)
+        _cumotion_robot = load_cumotion_supported_robot("franka")
+        self._cumotion_robot = _cumotion_robot
+        self._site_space = _cumotion_robot.robot_description.tool_frame_names()
+        self._tool_frame = self._site_space[0]
+
+        # cuMotion per-command sync gates; both transforms are committed once
+        self._static_robot = True  # Set to False for a mobile base
+        self._static_scene = True  # Set to True when obstacles never move
 
         # Target position randomization
         self.last_trigger_time = 0
@@ -111,7 +125,7 @@ class FrankaVisionMission(Mission):
             print(f"[{EXT_NAME}] Using Python-based streaming")
             self.camera_annot_sock_pub = self.zmq_client.get_push_socket(self.ports["camera_annotator"])
             self.camera_annotator.sock = self.camera_annot_sock_pub
-            self.zmq_client.add_physx_step_callback(
+            self.zmq_client.add_physics_step_callback(
                 "camera_annotator", 1 / self.camera_hz, self.camera_annotator.stream
             )
 
@@ -126,36 +140,33 @@ class FrankaVisionMission(Mission):
             server_control_message_pb2.ServerControlMessage,
             self.settings_sub_loop,
         )
+        # Coalesce franka commands at physics-step rate:
+        # ZMQ stores the latest message;
+        # _franka_physics_step consumes it once per step.
+        self._latest_franka_msg = None
         self.subscribe_to_protobuf_in_loop(
-            self.franka_socket,
-            server_control_message_pb2.ServerControlMessage,
-            self.franka_sub_loop
+            self.franka_socket, server_control_message_pb2.ServerControlMessage, self._franka_store_latest
         )
+        self.zmq_client.add_physics_step_callback("franka_control", 1 / self.physics_dt, self._franka_physics_step)
 
     async def stop_mission_async(self) -> None:
         """Stop the mission and clean up resources.
 
         This method stops the simulation, disconnects ZMQ sockets, and destroys annotators.
         """
-        if not hasattr(self, "world"):
-            carb.log_warn(f"[{EXT_NAME}] world was not initialized.")
-            return
-
-        await self.world.stop_async()
+        omni.timeline.get_timeline_interface().stop()
         self.receive_commands = False
-        self.zmq_client.remove_physx_callbacks()
+        self.zmq_client.remove_physics_callbacks()
         # must wait for all callbacks to finish before disconnecting from the server
         await asyncio.sleep(0.5)
         await self.zmq_client.disconnect_all()
         # must wait for all client to disconnect before destroying the annotators
         await asyncio.sleep(0.5)
-        if self.world.is_stopped():
+        if app_utils.is_stopped():
             for annotator in self.camera_annotators:
-                # annotator._rp.hydra_texture.set_updates_enabled(False)
                 annotator.destroy()
-                # annotator._rp.hydra_texture.set_updates_enabled(True)
         else:
-            carb.log_warn(f"[{EXT_NAME}] Cant destory annotators while simulation is running!")
+            carb.log_warn(f"[{EXT_NAME}] Cant destroy annotators while simulation is running!")
 
     def stop_mission(self) -> None:
         asyncio.ensure_future(self.stop_mission_async())
@@ -184,14 +195,12 @@ class FrankaVisionMission(Mission):
                     carb.log_warn(f"[{EXT_NAME}] Failed to set focal length")
                     pass
 
-        if self.world.is_playing():
+        if app_utils.is_playing():
             try:
-                self.camera_controller.apply_action(
-                    ArticulationAction(
-                        joint_positions=None,
-                        joint_efforts=None,
-                        joint_velocities=[new_velocities[0], new_velocities[1], new_velocities[2]],
-                    )
+                # Ideally physics ops are coalesced onto a physics-step callback
+                # Negligible for this 3-DOF write.
+                self.camera_robot.set_dof_velocity_targets(
+                    np.array([new_velocities[0], new_velocities[1], new_velocities[2]])
                 )
             except:
                 print(traceback.format_exc())
@@ -207,12 +216,23 @@ class FrankaVisionMission(Mission):
         if proto_msg.HasField("settings_command"):
             self.zmq_client.adaptive_rate = proto_msg.settings_command.adaptive_rate
 
+    def _franka_store_latest(self, proto_msg: server_control_message_pb2.ServerControlMessage) -> None:
+        """ZMQ-loop sink: stash the latest franka command for the physics step."""
+        self._latest_franka_msg = proto_msg
+
+    def _franka_physics_step(self, dt: float, sim_time: float) -> None:
+        """Apply the most recent franka command on the physics step (drops older)."""
+        msg = self._latest_franka_msg
+        if msg is None:
+            return
+        self._latest_franka_msg = None
+        self.franka_sub_loop(msg)
+
     def franka_sub_loop(self, proto_msg: server_control_message_pb2.ServerControlMessage) -> None:
-        """Handle Franka robot commands received via ZMQ.
+        """Apply a franka command (called from _franka_physics_step, not the ZMQ loop).
 
-        Controls the Franka robot's end effector position using RMPFlow and
-        randomizes the target position every 5 seconds.
-
+        Controls the Franka end effector via cuMotion RMPFlow and randomizes the
+        target every 8 seconds.
         Args:
             proto_msg: ServerControlMessage containing a FrankaCommand
         """
@@ -224,17 +244,45 @@ class FrankaVisionMission(Mission):
             effector_pos = proto_msg.franka_command.effector_pos
             new_effector_pos = [effector_pos.x, effector_pos.y, effector_pos.z]
 
-        if self.world.is_playing():
+        if app_utils.is_playing():
             try:
                 # Move end effector to target position:
                 # Position is computed from the server
                 # Orientation is computed from ground truth
-                rot_gt = self.target.get_world_poses()[1][0]
-                actions = self.rmpf_controller.forward(
-                    target_end_effector_position=np.array(new_effector_pos),
-                    target_end_effector_orientation=rot_gt,
+                _, target_orientations = self.target.get_world_poses()
+                target_positions = wp.array([new_effector_pos], dtype=wp.float32)
+                setpoint = mg.RobotState(
+                    sites=mg.SpatialState.from_name(
+                        spatial_space=[self._tool_frame],
+                        positions=([self._tool_frame], target_positions),
+                        orientations=([self._tool_frame], target_orientations),
+                    ),
                 )
-                self.franka_articulation_controller.apply_action(actions)
+                names = self._dof_names
+                estimated = mg.RobotState(
+                    joints=mg.JointState.from_name(
+                        robot_joint_space=names,
+                        positions=(names, self.franka.get_dof_positions()),
+                        velocities=(names, self.franka.get_dof_velocities()),
+                    )
+                )
+                t = SimulationManager.get_simulation_time()
+                if self._rmpflow_reset_needed:
+                    if not self.rmpf_controller.reset(estimated, setpoint, t=t):
+                        return
+                    self._rmpflow_reset_needed = False
+                if not self._static_robot:
+                    self._world_binding.get_world_interface().update_world_to_robot_root_transforms(
+                        self.franka.get_world_poses()
+                    )
+                if not self._static_scene:
+                    self._world_binding.synchronize_transforms()
+                desired = self.rmpf_controller.forward(estimated, setpoint, t)
+                if desired is not None and desired.joints.positions is not None:
+                    self.franka.set_dof_position_targets(
+                        positions=desired.joints.positions,
+                        dof_indices=desired.joints.position_indices,
+                    )
                 if proto_msg.franka_command.show_marker:
                     self.draw.draw_points([new_effector_pos], [(0, 0, 1, 1)], [10])
             except Exception as e:
@@ -251,11 +299,40 @@ class FrankaVisionMission(Mission):
 
     def reset_franka_mission(self) -> None:
         """Reset the Franka robot and its controller."""
-        self.franka = Franka(prim_path="/World/Franka")
-        self.franka.initialize()
-        self.rmpf_controller = RMPFlowController(name="target_follower_controller", robot_articulation=self.franka)
-        self.franka_articulation_controller = self.franka.get_articulation_controller()
-        self.target = XFormPrim(prim_paths_expr="/World/Target")
+        self.franka = Articulation("/World/Franka")
+        self._rmpflow_reset_needed = True
+
+        # dof_names is constant for an articulation's lifetime; cache it once.
+        self._dof_names = self.franka.dof_names
+
+        robot_pos, robot_ori = self.franka.get_world_poses()
+        objects = mg.SceneQuery().get_prims_in_aabb(
+            search_box_origin=robot_pos.numpy()[0],
+            search_box_minimum=[-10.0, -10.0, -10.0],
+            search_box_maximum=[10.0, 10.0, 10.0],
+            tracked_api=mg.TrackableApi.PHYSICS_COLLISION,
+            exclude_prim_paths=["/World/Franka", "/World/Target"],
+        )
+        self._world_binding = mg.WorldBinding(
+            world_interface=CumotionWorldInterface(),
+            obstacle_strategy=mg.ObstacleStrategy(),
+            tracked_prims=objects,
+            tracked_collision_api=mg.TrackableApi.PHYSICS_COLLISION,
+        )
+        self._world_binding.initialize()
+        # Initial cuMotion world sync; franka_sub_loop honors the static flags after this.
+        self._world_binding.get_world_interface().update_world_to_robot_root_transforms(poses=(robot_pos, robot_ori))
+        self._world_binding.synchronize_transforms()
+
+        self.rmpf_controller = RmpFlowController(
+            cumotion_robot=self._cumotion_robot,
+            cumotion_world_interface=self._world_binding.get_world_interface(),
+            robot_joint_space=self.franka.dof_names,
+            robot_site_space=self._site_space,
+            tool_frame=self._tool_frame,
+        )
+
+        self.target = GeomPrim("/World/Target")
         rot = euler_angles_to_quat((-180, 0, -180), degrees=True)
         self.target.set_world_poses(orientations=np.array([rot]))
 
@@ -265,8 +342,7 @@ class FrankaVisionMission(Mission):
         This method is called before resetting the world to set up the camera robot.
         """
         self.draw.clear_points()
-        self.camera_robot = Robot(prim_path=f"/World/camera", name="robot")
-        self.world.scene.add(self.camera_robot)
+        self.camera_robot = Articulation("/World/camera")
 
     def after_reset_world(self) -> None:
         """Execute operations after the world has been reset.
@@ -274,8 +350,7 @@ class FrankaVisionMission(Mission):
         This method is called after resetting the world to set up controllers and the Franka robot.
         """
         self.zmq_client.simulation_start_timecode = time.time()
-        self.camera_controller = self.camera_robot.get_articulation_controller()
-        self.meters_per_unit = self.world.scene.stage.GetMetadata(UsdGeom.Tokens.metersPerUnit)
+        self.meters_per_unit = omni.usd.get_context().get_stage().GetMetadata(UsdGeom.Tokens.metersPerUnit)
         self.reset_franka_mission()
 
     @classmethod
@@ -283,10 +358,7 @@ class FrankaVisionMission(Mission):
         """Add a Franka robot to the scene as reference"""
         root = get_assets_root_path()
         franka_usd = root + "/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd"
-        stage_utils.add_reference_to_stage(
-            usd_path=franka_usd,
-            prim_path="/World/Franka"
-        )
+        stage_utils.add_reference_to_stage(usd_path=franka_usd, prim_path="/World/Franka")
 
     @classmethod
     async def _async_load(cls, mission_instance) -> None:
@@ -327,7 +399,7 @@ class FrankaMultiVisionMission(FrankaVisionMission):
 
         gripper_camera.set_lens_distortion_model("OmniLensDistortionOpenCvFisheyeAPI")
 
-        gripper_camera_xform = XFormPrim(prim_paths_expr=cls.gripper_camera_prim_path)
+        gripper_camera_xform = XformPrim(cls.gripper_camera_prim_path)
         gripper_camera_xform.set_local_poses(
             translations=np.array([cls.gripper_camera_pos]), orientations=np.array([cls.gripper_camera_rot])
         )
@@ -356,14 +428,13 @@ class FrankaMultiVisionMission(FrankaVisionMission):
             print(f"[{EXT_NAME}] Using Python-based streaming")
             self.gripper_annot_sock_pub = self.zmq_client.get_push_socket(self.ports["gripper_annotator"])
             self.gripper_annotator.sock = self.gripper_annot_sock_pub
-            self.zmq_client.add_physx_step_callback(
+            self.zmq_client.add_physics_step_callback(
                 "gripper_annotator", 1 / self.camera_hz, self.gripper_annotator.stream
             )
 
     def reset_franka_mission(self) -> None:
         super().reset_franka_mission()
-        gripper_camera_xform = XFormPrim(prim_paths_expr=self.gripper_camera_prim_path)
+        gripper_camera_xform = XformPrim(self.gripper_camera_prim_path)
         gripper_camera_xform.set_local_poses(
-            translations=np.array([self.gripper_camera_pos]),
-            orientations=np.array([self.gripper_camera_rot])
+            translations=np.array([self.gripper_camera_pos]), orientations=np.array([self.gripper_camera_rot])
         )

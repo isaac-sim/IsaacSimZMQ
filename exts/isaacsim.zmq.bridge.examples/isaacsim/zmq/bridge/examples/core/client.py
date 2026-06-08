@@ -3,16 +3,16 @@
 
 import asyncio
 import traceback
-import zmq
-import zmq.asyncio
 
 import carb
 import omni
+import zmq
+import zmq.asyncio
+from isaacsim.core.simulation_manager import SimulationEvent, SimulationManager
 
-from isaacsim.core.api.world import World
-
-from .rate_limiter import RateLimitedCallback
 from .. import EXT_NAME
+from .rate_limiter import RateLimitedCallback
+
 
 class ZMQClient:
     """
@@ -37,7 +37,7 @@ class ZMQClient:
         self.server_ip = server_ip
         self.push_sockets = {}
         self.pull_sockets = {}
-        self.phyx_callbacks = {}
+        self.physics_callbacks = {}
         self.annotators = {}
 
         # ZMQ context
@@ -164,7 +164,7 @@ class ZMQClient:
         self.push_sockets[addr] = sock
         return sock
 
-    def add_physx_step_callback(self, name: str, hz: float, fn: callable) -> None:
+    def add_physics_step_callback(self, name: str, hz: float, fn: callable) -> None:
         """
         Adds a callback function to be executed at a specified simulation steps frequency.
 
@@ -176,22 +176,23 @@ class ZMQClient:
             hz (float): The frequency at which the callback is executed.
             fn (callable): The callback function to be executed.
         """
-        self.world = World.instance()
         rate_limited_callback = RateLimitedCallback(name, hz, fn, self.start_time)
-        self.world.add_physics_callback(name, rate_limited_callback.rate_limit)
-        self.phyx_callbacks[name] = rate_limited_callback
-        return
+        callback_id = SimulationManager.register_callback(
+            lambda dt, ctx: rate_limited_callback.rate_limit(dt),
+            event=SimulationEvent.PHYSICS_POST_STEP,
+        )
+        self.physics_callbacks[name] = (rate_limited_callback, callback_id)
 
-    def remove_physx_callbacks(self) -> None:
+    def remove_physics_callbacks(self) -> None:
         """
         Removes all registered physics callbacks.
 
-        This method iterates over the `phyx_callbacks` dictionary and unsubscribes each callback
+        This method iterates over the `physics_callbacks` dictionary and unsubscribes each callback
         from the physics simulation.
         """
-        for name, cb in self.phyx_callbacks.items():
-            self.world.remove_physics_callback(name)
-            del cb
+        for name, (cb, callback_id) in self.physics_callbacks.items():
+            SimulationManager.deregister_callback(callback_id)
+        self.physics_callbacks.clear()
 
     @property
     def adeptive_rate(self) -> bool:
@@ -211,5 +212,5 @@ class ZMQClient:
         """
         if value != self._adeptive_rate:
             self._adeptive_rate = value
-            for cb in self.phyx_callbacks.values():
+            for cb, _ in self.physics_callbacks.values():
                 cb.adeptive_rate = value
