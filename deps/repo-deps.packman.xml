@@ -23,12 +23,4 @@
   <dependency name="repo_kit_tools" linkPath="../_repo/deps/repo_kit_tools">
     <package name="repo_kit_tools" version="1.16.0" />
   </dependency>
-  <!-- <dependency name="repo_usd" linkPath="../_repo/deps/repo_usd">
-    <package name="repo_usd" version="5.0.12" />
-  </dependency> -->
-
-  <!-- docs build: tool for building and publishing documentation (migrated from isaacsim-docs) -->
-  <dependency name="repo_docs" linkPath="../_repo/deps/repo_docs">
-    <package name="repo_docs" version="2.5.0-dev.3412+mr536.1957a5a5" />
-  </dependency>
 </project>
