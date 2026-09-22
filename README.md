@@ -1,5 +1,10 @@
 # Isaac Sim ZMQ Bridge
 
+> [!IMPORTANT]
+> This repository is archived and no longer maintained. The ZMQ bridge is now
+> maintained in the Isaac Sim repository under
+> [`source/tools/zmq_bridge`](https://github.com/isaac-sim/IsaacSim/tree/develop/source/tools/zmq_bridge).
+
 [![IsaacSim](https://img.shields.io/badge/IsaacSim-6.0.1-silver.svg)](https://docs.isaacsim.omniverse.nvidia.com)
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://docs.python.org/3/whatsnew/3.11.html)
 [![Linux platform](https://img.shields.io/badge/platform-linux--64-orange.svg)](https://releases.ubuntu.com/24.04/)
